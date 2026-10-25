@@ -119,6 +119,12 @@
     <!-- Minutes each picture stays in the Clock screensaver (1 to 60); the clock moves every minute regardless. -->
     <integer name="dream_photo_minutes">2</integer>
 
+    <!-- Weather & AQI widget on Home header pill: true displays real-time weather & AQI. false hides it. -->
+    <bool name="show_weather_pill">true</bool>
+    <string name="weather_location" translatable="false">Pandhari Nagar, Kharadi, Pune</string>
+    <string name="weather_latitude" translatable="false">18.5534</string>
+    <string name="weather_longitude" translatable="false">73.9379</string>
+
     <!-- Prayer times, calculated on the TV with no network (PrayerTimes): the current and next prayer on Home, a
          Prayer Times tile with the full day, and the day in the Clock screensaver. false hides all three. -->
     <bool name="prayer_times">false</bool>

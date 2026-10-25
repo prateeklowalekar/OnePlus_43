@@ -128,6 +128,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Settings for the prayer line under the clock; its place is null when prayer times are off. */
     private Config prayerConfig;
     private TextView prayerLine;
+    private TextView weatherLine;
     private VideoWallpaperPlayer videoWallpaper;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -182,6 +183,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         public void run() {
             updateGreeting();
             updatePrayerLine();
+            updateWeatherLine();
             updateWifiLabel();
             updateWallpaper();
             sky.update();
@@ -214,6 +216,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         prayerConfig = cfg;
         prayerLine = findViewById(R.id.prayerLine);
         prayerLine.setVisibility(cfg.prayerTimes ? View.VISIBLE : View.GONE);
+        weatherLine = findViewById(R.id.weatherLine);
+        if (weatherLine != null) {
+            weatherLine.setOnClickListener(v -> {
+                try {
+                    Intent i = new Intent();
+                    i.setComponent(new ComponentName("io.github.sumyabazar1.weather", "io.github.sumyabazar1.weather.WeatherActivity"));
+                    startActivity(i);
+                } catch (Exception e) {
+                    Toast.makeText(this, "Weather app not installed", Toast.LENGTH_SHORT).show();
+                }
+            });
+            weatherLine.setOnLongClickListener(v -> {
+                boolean next = !WeatherProvider.isEnabled(this);
+                WeatherProvider.setEnabled(this, next);
+                updateWeatherLine();
+                Toast.makeText(this, next ? "Weather widget enabled" : "Weather widget disabled", Toast.LENGTH_SHORT).show();
+                return true;
+            });
+        }
+        updateWeatherLine();
         wallpaperFolder = cfg.wallpaperFolder;
         wallpaperRotateMs = cfg.wallpaperRotateMinutes * MINUTE_MS;
         videoWallpaper = new VideoWallpaperPlayer(this, root);
@@ -483,6 +505,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             applyPillTheme(findViewById(R.id.btnInputs), isLightWallpaper);
             applyPillTheme(findViewById(R.id.btnWifi), isLightWallpaper);
             applyPillTheme(findViewById(R.id.btnSettings), isLightWallpaper);
+            if (weatherLine != null) applyPillTheme(weatherLine, isLightWallpaper);
             if (prayerLine != null) applyPillTheme(prayerLine, isLightWallpaper);
         } catch (Exception ex) {
             Log.w(TAG, "applyAdaptiveTextColors failed", ex);
@@ -575,6 +598,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rebuildOnResume = false;
         updateGreeting();
         updatePrayerLine();
+        updateWeatherLine();
         updateWifiLabel();
         updateInputsButton();
         updateWallpaper();
@@ -841,6 +865,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     // ---- top bar ---------------------------------------------------------------------------------
+
+    private void updateWeatherLine() {
+        if (weatherLine == null) return;
+        WeatherProvider.update(this, text -> {
+            if (text != null && WeatherProvider.isEnabled(MainActivity.this)) {
+                weatherLine.setText(text);
+                weatherLine.setVisibility(View.VISIBLE);
+            } else {
+                weatherLine.setVisibility(View.GONE);
+            }
+        });
+    }
 
     /** "Now Dhuhr 12:04 PM · Next Asr 4:21 PM, in 1 h 10 min" under the clock. */
     private void updatePrayerLine() {
