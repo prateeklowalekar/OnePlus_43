@@ -81,6 +81,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView grid;
     private FrameLayout root;
     private TextView heroName;
+    private View focusedCard;
     private boolean heroShown;
     /** Where the top-shelf name sits, from the dock's last position (the grid's names use the same place). */
     private float dockHeroAnchor = -1f;
@@ -268,6 +269,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         grid.setHasFixedSize(true);
         grid.setItemAnimator(null);
+        grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                if (heroShown && focusedCard != null && focusedCard.isAttachedToWindow()) {
+                    Rect r = new Rect(0, 0, focusedCard.getWidth(), focusedCard.getHeight());
+                    root.offsetDescendantRectToMyCoords(focusedCard, r);
+                    int bubbleW = heroName.getMeasuredWidth();
+                    int bubbleH = heroName.getMeasuredHeight();
+                    float targetX = r.left + (r.width() - bubbleW) / 2f;
+                    targetX = Math.max(20 * density, Math.min(root.getWidth() - bubbleW - 20 * density, targetX));
+                    float targetY = r.top - bubbleH - (8 * density);
+                    heroName.animate().cancel();
+                    heroName.setX(targetX);
+                    heroName.setY(targetY);
+                }
+            }
+        });
         grid.addItemDecoration(new DockDecoration(COLUMNS, density, cfg.dockBand));
         if (animations) {
             int enterAnim = reducedMotion ? R.anim.tile_enter_reduced : R.anim.tile_enter;
@@ -724,6 +742,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     public void onTileFocused(int position, View card) {
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
+        focusedCard = card;
         // Tile rect in root coordinates, using layout positions (ignores the scale animation).
         Rect r = new Rect(0, 0, card.getWidth(), card.getHeight());
         root.offsetDescendantRectToMyCoords(card, r);
@@ -765,12 +784,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         float targetX = tileLeft + (tileWidth - bubbleW) / 2f;
         targetX = Math.max(20 * density, Math.min(root.getWidth() - bubbleW - 20 * density, targetX));
 
-        // Place bubble 8dp above the tile's top border
-        float targetY = tileTop - bubbleH - 8 * density;
-        if (targetY < 80 * density) {
-            // If near top bar, position slightly lower or clamped safely
-            targetY = tileTop + 8 * density;
-        }
+        // Place bubble strictly above the tile's top border at all times (never flip to bottom)
+        float targetY = tileTop - bubbleH - (8 * density);
 
         final float finalX = targetX;
         final float finalY = targetY;
@@ -1408,6 +1423,112 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return getString(R.string.card_state_new_label);
             default:
                 return getString(R.string.card_state_new);
+        }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            int keyCode = event.getKeyCode();
+            // Number keys 1 to 9 (and 0) -> quick launch dock apps
+            if (keyCode >= KeyEvent.KEYCODE_1 && keyCode <= KeyEvent.KEYCODE_9) {
+                int index = keyCode - KeyEvent.KEYCODE_1;
+                if (index < adapter.getItemCount()) {
+                    adapter.launchAt(index);
+                    return true;
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_0) {
+                if (9 < adapter.getItemCount()) {
+                    adapter.launchAt(9);
+                    return true;
+                }
+            }
+
+            // Settings button: 83, 4077, KEYCODE_SETTINGS, KEYCODE_MENU
+            if (keyCode == 83 || keyCode == 4077 || keyCode == KeyEvent.KEYCODE_SETTINGS || keyCode == KeyEvent.KEYCODE_MENU) {
+                if (HomeKeyService.running != null) {
+                    HomeKeyService.running.toggle();
+                } else {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception ignored) {}
+                }
+                return true;
+            }
+
+            // Live TV: KEYCODE_TV (170), 4001, KEYCODE_GUIDE (165), 278
+            if (keyCode == KeyEvent.KEYCODE_TV || keyCode == 4001 || keyCode == KeyEvent.KEYCODE_GUIDE || keyCode == 278) {
+                Intent tvIntent = new Intent(Intent.ACTION_MAIN).setComponent(
+                        new ComponentName("com.tcl.tv", "com.tcl.player.TVActivity"));
+                tvIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    startActivity(tvIntent);
+                } catch (Exception e) {
+                    Intent fallback = getPackageManager().getLeanbackLaunchIntentForPackage("com.tcl.tv");
+                    if (fallback != null) startActivity(fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                }
+                return true;
+            }
+
+            // YouTube: 190, 4065
+            if (keyCode == 190 || keyCode == 4065) {
+                launchDirect("com.google.android.youtube.tv");
+                return true;
+            }
+
+            // Netflix: 4062, 191
+            if (keyCode == 4062 || keyCode == 191) {
+                launchDirect("com.netflix.ninja");
+                return true;
+            }
+
+            // Prime Video: 4099, 193
+            if (keyCode == 4099 || keyCode == 193) {
+                launchDirect("com.amazon.amazonvideo.livingroom");
+                return true;
+            }
+
+            // TCL Channel: 4020
+            if (keyCode == 4020) {
+                Intent channel = new Intent(Intent.ACTION_MAIN).setComponent(
+                        new ComponentName("com.tcl.waterfall.overseas", "com.tcl.waterfall.overseas.main.MainActivity"));
+                channel.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    startActivity(channel);
+                } catch (Exception e) {
+                    launchDirect("com.tcl.channelplus");
+                }
+                return true;
+            }
+
+            // Web Browser: 4159, 4057
+            if (keyCode == 4159 || keyCode == 4057) {
+                launchDirect("com.tcl.browser");
+                return true;
+            }
+
+            // Sony LIV: 4141
+            if (keyCode == 4141) {
+                Intent intent = getPackageManager().getLeanbackLaunchIntentForPackage("com.sonyliv");
+                if (intent == null) intent = getPackageManager().getLaunchIntentForPackage("com.sonyliv");
+                if (intent == null) {
+                    launchDirect("in.startv.hotstar");
+                } else {
+                    try { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignored) {}
+                }
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    private void launchDirect(String pkg) {
+        Intent intent = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+        if (intent == null) intent = getPackageManager().getLaunchIntentForPackage(pkg);
+        if (intent != null) {
+            try {
+                startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Exception ignored) {}
         }
     }
 }

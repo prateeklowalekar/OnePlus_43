@@ -368,6 +368,12 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         launchEntry(ctx, e);
     }
 
+    void launchAt(int position) {
+        if (position >= 0 && position < items.size()) {
+            launch(items.get(position));
+        }
+    }
+
     /** Opens an app tile from anywhere in the launcher (the grid or the System folder). */
     static void launchEntry(Context ctx, Entry e) {
         if (e.kind == Entry.HOME_SETTINGS) {
