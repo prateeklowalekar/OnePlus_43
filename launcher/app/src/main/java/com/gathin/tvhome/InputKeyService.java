@@ -44,7 +44,7 @@ public class InputKeyService extends AccessibilityService {
         try {
             startActivity(tvIntent);
         } catch (ActivityNotFoundException | SecurityException e) {
-            launchPackage("com.tcl.tv", null);
+            launchPackage("com.tcl.tv", "com.oneplus.tv.android.livetv");
         }
     }
 

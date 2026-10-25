@@ -1,12 +1,24 @@
 <#
 .SYNOPSIS
     Syncs local static and live wallpapers from PC to connected Android TV over ADB.
+.PARAMETER Target
+    Named target TV: 'TCL' (192.168.1.22:40841) or 'OnePlus' (192.168.1.29:5555).
 .PARAMETER DeviceIp
-    Target TV IP address (defaults to 192.168.1.29:5555 for TV2).
+    Target TV IP address (defaults based on Target, or manual IP:port).
 #>
 param(
-    [string]$DeviceIp = "192.168.1.29:5555"
+    [ValidateSet("TCL", "OnePlus")]
+    [string]$Target = "TCL",
+    [string]$DeviceIp = ""
 )
+
+if ([string]::IsNullOrWhiteSpace($DeviceIp)) {
+    if ($Target -eq "OnePlus") {
+        $DeviceIp = "192.168.1.29:5555"
+    } else {
+        $DeviceIp = "192.168.1.22:40841"
+    }
+}
 
 $PSScriptRootLocal = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $ProjectRoot = Split-Path -Parent $PSScriptRootLocal
