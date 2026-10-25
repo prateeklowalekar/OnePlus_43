@@ -63,8 +63,8 @@ public final class WeatherActivity extends Activity {
             // Pre-seed default location for Pandhari Nagar, Kharadi, Pune 411014
             place.edit()
                     .putString("name", "Pandhari Nagar, Kharadi, Pune")
-                    .putFloat("lat", 18.5534f)
-                    .putFloat("lon", 73.9379f)
+                    .putLong("lat", Double.doubleToRawLongBits(18.5534))
+                    .putLong("lon", Double.doubleToRawLongBits(73.9379))
                     .apply();
         }
     }
