@@ -104,24 +104,60 @@ public class WallpaperPickerActivity extends Activity {
         staticItems.clear();
         liveItems.clear();
 
-        // Load static wallpapers
-        if (staticFolder != null && staticFolder.isDirectory()) {
-            File[] files = staticFolder.listFiles((d, n) -> n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png") || n.endsWith(".webp"));
-            if (files != null) {
-                for (File f : files) {
-                    staticItems.add(new WallpaperItem(f.getName(), f.getName(), f, false));
+        // Load static wallpapers from all potential locations
+        List<File> staticDirs = new ArrayList<>();
+        if (staticFolder != null) staticDirs.add(staticFolder);
+        File appStatic = new File(getExternalFilesDir(null), "Wallpapers");
+        if (!staticDirs.contains(appStatic)) staticDirs.add(appStatic);
+        File sdStatic = new File("/sdcard/Wallpapers");
+        if (!staticDirs.contains(sdStatic)) staticDirs.add(sdStatic);
+
+        for (File dir : staticDirs) {
+            if (dir != null && dir.isDirectory()) {
+                File[] files = dir.listFiles((d, n) -> {
+                    String lower = n.toLowerCase();
+                    return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp");
+                });
+                if (files != null) {
+                    for (File f : files) {
+                        boolean exists = false;
+                        for (WallpaperItem item : staticItems) {
+                            if (item.name.equals(f.getName())) { exists = true; break; }
+                        }
+                        if (!exists) {
+                            staticItems.add(new WallpaperItem(f.getName(), f.getName(), f, false));
+                        }
+                    }
                 }
             }
         }
         Collections.sort(staticItems, (a, b) -> a.name.compareToIgnoreCase(b.name));
 
-        // Load live video wallpapers
-        if (liveFolder != null && liveFolder.isDirectory()) {
-            File[] files = liveFolder.listFiles((d, n) -> n.endsWith(".mp4") || n.endsWith(".mov") || n.endsWith(".mkv"));
-            if (files != null) {
-                for (File f : files) {
-                    String cleanName = f.getName().replace(".mp4", "").replace(".mov", "").replace("_", " ");
-                    liveItems.add(new WallpaperItem(f.getName(), cleanName, f, true));
+        // Load live video wallpapers from all potential locations
+        List<File> liveDirs = new ArrayList<>();
+        if (liveFolder != null) liveDirs.add(liveFolder);
+        File appLive = new File(getExternalFilesDir(null), "LiveWallpapers");
+        if (!liveDirs.contains(appLive)) liveDirs.add(appLive);
+        File sdLive = new File("/sdcard/Wallpapers/Live");
+        if (!liveDirs.contains(sdLive)) liveDirs.add(sdLive);
+
+        for (File dir : liveDirs) {
+            if (dir != null && dir.isDirectory()) {
+                File[] files = dir.listFiles((d, n) -> {
+                    String lower = n.toLowerCase();
+                    return lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".mkv");
+                });
+                if (files != null) {
+                    for (File f : files) {
+                        boolean exists = false;
+                        for (WallpaperItem item : liveItems) {
+                            if (item.name.equals(f.getName())) { exists = true; break; }
+                        }
+                        if (!exists) {
+                            String cleanName = f.getName().replaceAll("(?i)\\.(mp4|mov|mkv)$", "").replace("_", " ");
+                            liveItems.add(new WallpaperItem(f.getName(), cleanName, f, true));
+                        }
+                    }
                 }
             }
         }
@@ -157,14 +193,19 @@ public class WallpaperPickerActivity extends Activity {
     private void pickItem(WallpaperItem item) {
         try {
             if (item.isLive) {
-                // Set as active video wallpaper
+                // Set as active video wallpaper in private storage
                 File dest = new File(getExternalFilesDir(null), "wallpaper.mp4");
                 copyFile(item.file, dest);
+                // Also clean up any static wallpaper override so live video takes precedence
+                File activeStatic = new File(getExternalFilesDir(null), "wallpaper.jpg");
+                if (activeStatic.exists()) activeStatic.delete();
                 Toast.makeText(this, "Set " + item.displayName + " as Live Wallpaper", Toast.LENGTH_SHORT).show();
             } else {
                 // If a video wallpaper was active, disable it so static shows
                 File activeVideo = new File(getExternalFilesDir(null), "wallpaper.mp4");
                 if (activeVideo.exists()) activeVideo.delete();
+                File sdVideo = new File("/sdcard/Wallpapers/wallpaper.mp4");
+                if (sdVideo.exists()) sdVideo.delete();
 
                 // Save static rotation state
                 List<WallpaperRotation.Picture> pics = new ArrayList<>();

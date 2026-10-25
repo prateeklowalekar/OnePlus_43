@@ -337,6 +337,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void updateWallpaper() {
         if (videoWallpaper != null && videoWallpaper.hasVideo()) {
             if (wallpaperView != null) wallpaperView.setVisibility(View.GONE);
+            shownWallpaperPath = null;
             return;
         }
         if (wallpaperView != null) wallpaperView.setVisibility(View.VISIBLE);
