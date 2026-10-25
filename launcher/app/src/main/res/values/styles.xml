@@ -17,7 +17,7 @@
         <item name="android:background">@drawable/pill_bg</item>
         <item name="android:textColor">@drawable/pill_text</item>
         <item name="android:textSize">15sp</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">@font/outfit_medium</item>
         <item name="android:letterSpacing">0.01</item>
         <item name="android:drawablePadding">9dp</item>
         <item name="android:drawableTint">@drawable/pill_text</item>
@@ -26,13 +26,12 @@
     </style>
     <style name="TopButton" parent="TopButtonBase" />
 
-    <!-- Icon-only pill: a 42dp circle (pill_bg's 21dp corners) with the 22dp icon centred by even padding. Give it a
-         contentDescription, since there is no text. -->
-    <style name="TopButtonIcon" parent="TopButtonBase">
-        <item name="android:layout_width">42dp</item>
-        <item name="android:paddingStart">10dp</item>
-        <item name="android:paddingEnd">10dp</item>
-        <item name="android:drawablePadding">0dp</item>
+    <!-- The Wallpaper pop-up: a dialog over the dimmed home screen, no title or frame of its own. -->
+    <style name="Theme.TvHome.Picker" parent="android:Theme.Material.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+        <item name="android:windowAnimationStyle">@null</item>
     </style>
 
     <style name="SettingsRow">

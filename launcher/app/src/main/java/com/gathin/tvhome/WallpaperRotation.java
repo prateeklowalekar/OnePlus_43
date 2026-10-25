@@ -1,88 +1,111 @@
 package com.gathin.tvhome;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
-import java.util.Random;
 
+/**
+ * Picks the wallpaper from a folder of pictures. Pure logic, no Android and no I/O, so it can be
+ * tested on the JVM; MainActivity lists the folder, keeps the state and draws the picture.
+ *
+ * Rules, in this order:
+ * 1. A picture newer than any seen before (sent from a phone, say) is shown at once.
+ * 2. When the current picture is gone, the first one (by name) is shown.
+ * 3. When the interval has passed since the last change, the next one by name is shown, wrapping round.
+ *    An interval of 0 or less never rotates.
+ * 4. Otherwise the current picture stays.
+ */
 final class WallpaperRotation {
-    /** Playback orders persisted in config.json (wallpaper_order). */
-    static final String ORDER_SEQUENTIAL = "sequential";
-    static final String ORDER_SHUFFLE = "shuffle";
 
-    static boolean validOrder(String order) {
-        return ORDER_SEQUENTIAL.equals(order) || ORDER_SHUFFLE.equals(order);
-    }
+    /** One picture in the folder: its file name and its last-modified time. */
+    static final class Picture {
+        final String name;
+        final long modifiedMs;
 
-    static List<File> images(File directory) {
-        List<File> result = new ArrayList<>();
-        File[] entries = directory == null ? null : directory.listFiles();
-        if (entries == null) return result;
-        Arrays.sort(entries, Comparator.comparing(File::getName));
-        for (File entry : entries) {
-            String name = entry.getName().toLowerCase(Locale.ROOT);
-            if (entry.isFile() && entry.length() > 0 && entry.length() <= 10 * 1024 * 1024
-                    && (name.endsWith(".jpg") || name.endsWith(".jpeg")
-                    || name.endsWith(".png") || name.endsWith(".webp"))) {
-                result.add(entry);
-                if (result.size() == 100) break;
-            }
+        Picture(String name, long modifiedMs) {
+            this.name = name;
+            this.modifiedMs = modifiedMs;
         }
-        return result;
     }
 
-    static File find(List<File> images, String name) {
-        for (File image : images) if (image.getName().equals(name)) return image;
-        return null;
+    /** What the launcher remembers between checks. {@link #EMPTY} before the first check. */
+    static final class State {
+        static final State EMPTY = new State(null, 0, 0);
+
+        /** File name of the picture on screen, or null. */
+        final String current;
+        /** When that picture went on screen. */
+        final long shownAtMs;
+        /** The newest modified time seen in the folder so far. */
+        final long newestSeenMs;
+
+        State(String current, long shownAtMs, long newestSeenMs) {
+            this.current = current;
+            this.shownAtMs = shownAtMs;
+            this.newestSeenMs = newestSeenMs;
+        }
     }
 
-    /** The on-TV choice (Launcher settings, Wallpaper) that turns the wallpaper off. */
-    static final String CHOICE_NONE = "none";
+    private WallpaperRotation() {
+    }
+
+    /** The state after a check: its {@code current} is the picture to show, null when the folder is empty. */
+    static State choose(List<Picture> pictures, State state, long nowMs, long intervalMs) {
+        if (pictures.isEmpty()) return new State(null, state.shownAtMs, state.newestSeenMs);
+
+        List<Picture> byName = new ArrayList<>(pictures);
+        Collections.sort(byName, Comparator.comparing(p -> p.name));
+        Picture newest = Collections.max(byName, Comparator.comparingLong(p -> p.modifiedMs));
+        long newestSeen = Math.max(state.newestSeenMs, newest.modifiedMs);
+
+        if (newest.modifiedMs > state.newestSeenMs) {
+            return new State(newest.name, nowMs, newestSeen);
+        }
+        int index = indexOf(byName, state.current);
+        if (index < 0) {
+            return new State(byName.get(0).name, nowMs, newestSeen);
+        }
+        long elapsed = nowMs - state.shownAtMs;
+        if (elapsed < 0) {
+            // The clock went back: start the interval again from now.
+            return new State(state.current, nowMs, newestSeen);
+        }
+        if (intervalMs > 0 && elapsed >= intervalMs) {
+            return new State(next(byName, state.current), nowMs, newestSeen);
+        }
+        return new State(state.current, state.shownAtMs, newestSeen);
+    }
 
     /**
-     * What an on-TV wallpaper choice puts on Home in place of the theme's rotation: null when the theme decides
-     * (no choice, or a picture that is no longer there), an empty list for {@link #CHOICE_NONE}, or the one picture
-     * chosen from the theme's collection or its single {@code single} wallpaper.
+     * The state after a picture is picked in the Wallpaper pop-up: that picture, with the interval starting
+     * again from now. Every picture counts as seen, so the pick is not replaced by "newest" on the next check.
+     * A name that is not in the folder leaves the state as it was.
      */
-    static List<File> chosen(List<File> collection, File single, String choice) {
-        if (choice == null) return null;
-        if (CHOICE_NONE.equals(choice)) return Collections.emptyList();
-        File picked = find(collection, choice);
-        if (picked == null && single != null && choice.equals(single.getName())) picked = single;
-        return picked == null ? null : Collections.singletonList(picked);
-    }
-
-    static File pick(List<File> images, String previous, Random random) {
-        List<File> candidates = new ArrayList<>(images);
-        if (candidates.size() > 1) candidates.removeIf(image -> image.getName().equals(previous));
-        return candidates.isEmpty() ? null : candidates.get(random.nextInt(candidates.size()));
+    static State select(List<Picture> pictures, State state, long nowMs, String name) {
+        if (indexOf(pictures, name) < 0) return state;
+        long newestSeen = state.newestSeenMs;
+        for (Picture p : pictures) newestSeen = Math.max(newestSeen, p.modifiedMs);
+        return new State(name, nowMs, newestSeen);
     }
 
     /**
-     * The next picture in the sorted collection, wrapping to the first at the end. The list from
-     * {@link #images(File)} is sorted by filename, so this is a stable order across restarts. A
-     * previous name that is no longer in the collection starts again at the first picture.
+     * The picture after {@code after} by name, wrapping round; the first one when {@code after} is null or
+     * gone; null when there are no pictures. The screensaver walks the folder with it.
      */
-    static File next(List<File> images, String previous) {
-        if (images.isEmpty()) return null;
-        for (int i = 0; i < images.size(); i++) {
-            if (images.get(i).getName().equals(previous)) {
-                return images.get((i + 1) % images.size());
-            }
+    static String next(List<Picture> pictures, String after) {
+        if (pictures.isEmpty()) return null;
+        List<Picture> byName = new ArrayList<>(pictures);
+        Collections.sort(byName, Comparator.comparing(p -> p.name));
+        int index = indexOf(byName, after);
+        return byName.get(index < 0 ? 0 : (index + 1) % byName.size()).name;
+    }
+
+    private static int indexOf(List<Picture> pictures, String name) {
+        if (name == null) return -1;
+        for (int i = 0; i < pictures.size(); i++) {
+            if (pictures.get(i).name.equals(name)) return i;
         }
-        return images.get(0);
-    }
-
-    /** Picks the next picture for {@code order}; an unknown order keeps the historical shuffle. */
-    static File pick(List<File> images, String previous, String order, Random random) {
-        return ORDER_SEQUENTIAL.equals(order) ? next(images, previous) : pick(images, previous, random);
-    }
-
-    static boolean due(long previous, long now, long interval) {
-        return interval > 0 && (previous == 0 || now < previous || now - previous >= interval);
+        return -1;
     }
 }
