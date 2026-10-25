@@ -12,20 +12,6 @@
         android:layout_height="match_parent"
         android:importantForAccessibility="no" />
 
-    <!-- Top shelf: the focused dock app's name, positioned above the dock in code. -->
-    <TextView
-        android:id="@+id/heroName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="68dp"
-        android:alpha="0"
-        android:textColor="#FFFFFFFF"
-        android:textSize="48sp"
-        android:fontFamily="@font/outfit_light"
-        android:letterSpacing="-0.02"
-        android:includeFontPadding="false"
-        android:singleLine="true" />
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -247,4 +233,19 @@
                 android:descendantFocusability="afterDescendants" />
         </FrameLayout>
     </LinearLayout>
+
+    <!-- Floating bubble/cloud label that pops up above the currently focused tile -->
+    <TextView
+        android:id="@+id/heroName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0"
+        android:background="@drawable/bubble_label_bg"
+        android:textColor="#FFFFFFFF"
+        android:textSize="15sp"
+        android:fontFamily="@font/outfit_medium"
+        android:letterSpacing="0.02"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:elevation="10dp" />
 </FrameLayout>

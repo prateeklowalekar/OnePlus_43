@@ -739,35 +739,47 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 if (!animations || reducedMotion) grid.scrollBy(0, dy);
                 else grid.smoothScrollBy(0, dy);
             }
-            dockHeroAnchor = scroll ? r.top - dy : r.top;
-            showHero(position, dockHeroAnchor);
+            float targetTop = scroll ? r.top - dy : r.top;
+            showHero(position, r.left, targetTop, r.width());
         } else {
-            // A grid app (System folder, Wallpaper, ...) names itself above its own row, never covered by the grid.
-            showHero(position, r.top);
+            showHero(position, r.left, r.top, r.width());
             // Scroll just enough so the focused tile is on screen.
             Rect want = new Rect(0, 0, item.getWidth(), item.getHeight());
             grid.requestChildRectangleOnScreen(item, want, reducedMotion);
         }
     }
 
-    // ---- top shelf -------------------------------------------------------------------------------
+    // ---- top shelf / tile bubble label -------------------------------------------------------------
 
-    /** The focused dock app's name above the dock. Its fade and slide only: the background stays as it is. */
-    private void showHero(int position, float dockTopInRoot) {
+    /** Pops up a floating bubble/word-cloud label directly above the currently focused tile. */
+    private void showHero(int position, float tileLeft, float tileTop, int tileWidth) {
         String label = adapter.labelAt(position);
-        float calcY = dockTopInRoot - 14 * density - 26 * density - heroName.getHeight();
-        if (position >= COLUMNS) {
-            // For row 2 and below: float safely above the focused tile row with a minimum top margin
-            calcY = Math.max(130 * density, calcY);
+        heroName.setText(label);
+        heroName.measure(
+                View.MeasureSpec.makeMeasureSpec(root.getWidth(), View.MeasureSpec.AT_MOST),
+                View.MeasureSpec.makeMeasureSpec(root.getHeight(), View.MeasureSpec.AT_MOST));
+        int bubbleW = heroName.getMeasuredWidth();
+        int bubbleH = heroName.getMeasuredHeight();
+
+        // Center bubble horizontally above the tile, constrained within screen margins
+        float targetX = tileLeft + (tileWidth - bubbleW) / 2f;
+        targetX = Math.max(20 * density, Math.min(root.getWidth() - bubbleW - 20 * density, targetX));
+
+        // Place bubble 8dp above the tile's top border
+        float targetY = tileTop - bubbleH - 8 * density;
+        if (targetY < 80 * density) {
+            // If near top bar, position slightly lower or clamped safely
+            targetY = tileTop + 8 * density;
         }
-        final float y = calcY;
+
+        final float finalX = targetX;
+        final float finalY = targetY;
         boolean changed = !label.contentEquals(heroName.getText());
 
         if (!animations || reducedMotion) {
             heroName.animate().cancel();
-            heroName.setText(label);
-            heroName.setY(y);
-            heroName.setTranslationX(0f);
+            heroName.setX(finalX);
+            heroName.setY(finalY);
             heroName.setAlpha(1f);
             heroShown = true;
             return;
@@ -775,21 +787,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         if (!heroShown) {
             heroName.animate().cancel();
-            heroName.setText(label);
-            heroName.setY(y);
-            heroName.setTranslationX(0f);
-            heroName.animate().alpha(1f).setDuration(260).start();
+            heroName.setX(finalX);
+            heroName.setY(finalY + 6 * density);
+            heroName.setAlpha(0f);
+            heroName.animate()
+                    .alpha(1f)
+                    .y(finalY)
+                    .setDuration(160)
+                    .start();
             heroShown = true;
-        } else if (changed) {
-            if (advancedEffects) heroName.animate().cancel();
-            heroName.animate().alpha(0f).translationX(-12 * density).setDuration(120).withEndAction(() -> {
-                heroName.setText(label);
-                heroName.setY(y);
-                heroName.setTranslationX(12 * density);
-                heroName.animate().alpha(1f).translationX(0f).setDuration(200).start();
-            }).start();
         } else {
-            heroName.setY(y);
+            heroName.animate().cancel();
+            heroName.animate()
+                    .x(finalX)
+                    .y(finalY)
+                    .alpha(1f)
+                    .setDuration(120)
+                    .start();
         }
     }
 
