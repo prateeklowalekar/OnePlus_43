@@ -131,6 +131,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView prayerLine;
     private TextView weatherLine;
     private VideoWallpaperPlayer videoWallpaper;
+    private boolean isHomeResumed = false;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
@@ -182,6 +183,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private final Runnable minuteTick = new Runnable() {
         @Override
         public void run() {
+            if (!isHomeResumed) return;
             updateGreeting();
             updatePrayerLine();
             updateWeatherLine();
@@ -608,6 +610,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        isHomeResumed = true;
         promptsPaused = false;
         if (rebuildOnResume) {
             tilesReady = false;
@@ -626,7 +629,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             videoWallpaper.stop();
         }
         sky.update();
-        handler.postDelayed(minuteTick, MINUTE_MS);
+        handler.removeCallbacks(minuteTick);
+        long interval = WallpaperFolder.getRotationIntervalMs(this, wallpaperRotateMs);
+        long delay = interval > 0 && interval < MINUTE_MS ? interval : MINUTE_MS;
+        handler.postDelayed(minuteTick, delay);
     }
 
     @Override
@@ -696,6 +702,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onPause() {
+        isHomeResumed = false;
         super.onPause();
         if (videoWallpaper != null) videoWallpaper.stop();
         heroName.animate().cancel();
@@ -707,7 +714,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onStop() {
+        isHomeResumed = false;
         super.onStop();
+        handler.removeCallbacks(minuteTick);
         unregisterReceiver(packageReceiver);
         rebuildOnResume = true;
     }
@@ -720,6 +729,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onDestroy() {
+        isHomeResumed = false;
+        handler.removeCallbacksAndMessages(null);
         super.onDestroy();
         if (videoWallpaper != null) videoWallpaper.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
@@ -898,6 +909,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void updateWeatherLine() {
         if (weatherLine == null) return;
         WeatherProvider.update(this, text -> {
+            if (!isHomeResumed) return;
             if (text != null && WeatherProvider.isEnabled(MainActivity.this)) {
                 weatherLine.setText(text);
                 weatherLine.setVisibility(View.VISIBLE);
