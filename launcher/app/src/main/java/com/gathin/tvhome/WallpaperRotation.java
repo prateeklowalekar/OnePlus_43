@@ -52,6 +52,11 @@ final class WallpaperRotation {
 
     /** The state after a check: its {@code current} is the picture to show, null when the folder is empty. */
     static State choose(List<Picture> pictures, State state, long nowMs, long intervalMs) {
+        return choose(pictures, state, nowMs, intervalMs, false);
+    }
+
+    /** The state after a check with optional random shuffle support. */
+    static State choose(List<Picture> pictures, State state, long nowMs, long intervalMs, boolean shuffle) {
         if (pictures.isEmpty()) return new State(null, state.shownAtMs, state.newestSeenMs);
 
         List<Picture> byName = new ArrayList<>(pictures);
@@ -72,6 +77,11 @@ final class WallpaperRotation {
             return new State(state.current, nowMs, newestSeen);
         }
         if (intervalMs > 0 && elapsed >= intervalMs) {
+            if (shuffle && byName.size() > 1) {
+                int r = (int) (Math.random() * (byName.size() - 1));
+                if (r >= index) r++;
+                return new State(byName.get(r).name, nowMs, newestSeen);
+            }
             return new State(next(byName, state.current), nowMs, newestSeen);
         }
         return new State(state.current, state.shownAtMs, newestSeen);

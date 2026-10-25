@@ -19,3 +19,11 @@ traces/
 *.aab
 launcher/hs_err_pid*.log
 launcher/replay_pid*.log
+
+# Tool dependencies and custom media
+tools/android-sdk/
+tools/jdk17/
+tools/platform-tools/
+custom_wallpapers/
+wallpapers/*.mp4
+

@@ -49,4 +49,16 @@
         android:textSize="11sp"
         android:fontFamily="@font/outfit"
         android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/checkMark"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:padding="3dp"
+        android:background="@drawable/wallpaper_selected_badge_bg"
+        android:src="@drawable/ic_check"
+        android:contentDescription="@null"
+        android:visibility="gone" />
 </FrameLayout>

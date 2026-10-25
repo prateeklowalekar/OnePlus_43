@@ -185,7 +185,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             updateWifiLabel();
             updateWallpaper();
             sky.update();
-            handler.postDelayed(this, MINUTE_MS);
+            long interval = WallpaperFolder.getRotationIntervalMs(MainActivity.this, wallpaperRotateMs);
+            long delay = interval > 0 && interval < MINUTE_MS ? interval : MINUTE_MS;
+            handler.postDelayed(this, delay);
         }
     };
 
@@ -356,8 +358,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** The folder picture to show now, with the rotation state saved; null when there is none. */
     private File pickFolderWallpaper() {
+        boolean shuffle = WallpaperFolder.isShuffleEnabled(this);
+        long effectiveInterval = WallpaperFolder.getRotationIntervalMs(this, wallpaperRotateMs);
+
         File internalCustom = new File(getExternalFilesDir(null), "wallpaper.jpg");
-        if (wallpaperRotateMs == 0 && internalCustom.isFile()) {
+        if (!shuffle && effectiveInterval == 0 && internalCustom.isFile()) {
             return internalCustom;
         }
         List<WallpaperRotation.Picture> pictures = WallpaperFolder.list(wallpaperFolder);
@@ -371,8 +376,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         }
         if (pictures == null || pictures.isEmpty()) return null;
+
+        // If user selected specific pictures to shuffle, filter pictures to that subset
+        if (shuffle) {
+            java.util.Set<String> selection = WallpaperFolder.getShuffleSelection(this);
+            if (selection != null && !selection.isEmpty()) {
+                List<WallpaperRotation.Picture> subset = new ArrayList<>();
+                for (WallpaperRotation.Picture p : pictures) {
+                    if (selection.contains(p.name)) subset.add(p);
+                }
+                if (!subset.isEmpty()) {
+                    pictures = subset;
+                }
+            }
+        }
+
         WallpaperRotation.State state = WallpaperRotation.choose(
-                pictures, WallpaperFolder.load(this), System.currentTimeMillis(), wallpaperRotateMs);
+                pictures, WallpaperFolder.load(this), System.currentTimeMillis(), effectiveInterval, shuffle);
         WallpaperFolder.save(this, state);
         return state.current != null ? new File(effectiveFolder, state.current) : null;
     }
@@ -698,8 +718,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             dockHeroAnchor = scroll ? r.top - dy : r.top;
             showHero(position, dockHeroAnchor);
         } else {
-            // A grid app (System folder, Wallpaper, ...) names itself in the same place as the dock apps do.
-            showHero(position, dockHeroAnchor >= 0 ? dockHeroAnchor : r.top);
+            // A grid app (System folder, Wallpaper, ...) names itself above its own row, never covered by the grid.
+            showHero(position, r.top);
             // Scroll just enough so the focused tile is on screen.
             Rect want = new Rect(0, 0, item.getWidth(), item.getHeight());
             grid.requestChildRectangleOnScreen(item, want, reducedMotion);
@@ -711,7 +731,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The focused dock app's name above the dock. Its fade and slide only: the background stays as it is. */
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
-        float y = dockTopInRoot - 14 * density - 26 * density - heroName.getHeight();
+        float calcY = dockTopInRoot - 14 * density - 26 * density - heroName.getHeight();
+        if (position >= COLUMNS) {
+            // For row 2 and below: float safely above the focused tile row with a minimum top margin
+            calcY = Math.max(130 * density, calcY);
+        }
+        final float y = calcY;
         boolean changed = !label.contentEquals(heroName.getText());
 
         if (!animations || reducedMotion) {

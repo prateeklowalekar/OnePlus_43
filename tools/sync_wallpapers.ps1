@@ -22,7 +22,7 @@ Write-Host "Ensuring directories on TV..." -ForegroundColor Cyan
 & $Adb -s $DeviceIp shell "mkdir -p /sdcard/Wallpapers /sdcard/Wallpapers/Live /sdcard/Android/data/com.gathin.tvhome/files/Wallpapers /sdcard/Android/data/com.gathin.tvhome/files/LiveWallpapers"
 
 # Push static wallpapers
-$staticFiles = Get-ChildItem -Path $StaticFolder -File -Include *.jpg,*.jpeg,*.png,*.webp
+$staticFiles = Get-ChildItem -Path $StaticFolder -File | Where-Object { $_.Extension -match '^\.(jpg|jpeg|png|webp)$' }
 if ($staticFiles.Count -gt 0) {
     Write-Host "Pushing $($staticFiles.Count) static wallpaper(s)..." -ForegroundColor Green
     foreach ($file in $staticFiles) {
@@ -35,7 +35,7 @@ if ($staticFiles.Count -gt 0) {
 }
 
 # Push live wallpapers
-$liveFiles = Get-ChildItem -Path $LiveFolder -File -Include *.mp4,*.mov,*.mkv
+$liveFiles = Get-ChildItem -Path $LiveFolder -File | Where-Object { $_.Extension -match '^\.(mp4|mov|mkv)$' }
 if ($liveFiles.Count -gt 0) {
     Write-Host "Pushing $($liveFiles.Count) live wallpaper(s)..." -ForegroundColor Green
     foreach ($file in $liveFiles) {

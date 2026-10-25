@@ -23,9 +23,36 @@ final class WallpaperFolder {
     private static final String KEY_CURRENT = "current";
     private static final String KEY_SHOWN_AT = "shown_at";
     private static final String KEY_NEWEST_SEEN = "newest_seen";
+    private static final String KEY_SHUFFLE_ENABLED = "shuffle_enabled";
+    private static final String KEY_ROTATION_INTERVAL_MS = "rotation_interval_ms";
+    private static final String KEY_SHUFFLE_SELECTION = "shuffle_selection";
     private static final String[] EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"};
 
     private WallpaperFolder() {
+    }
+
+    static boolean isShuffleEnabled(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_SHUFFLE_ENABLED, false);
+    }
+
+    static void setShuffleEnabled(Context ctx, boolean enabled) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_SHUFFLE_ENABLED, enabled).apply();
+    }
+
+    static long getRotationIntervalMs(Context ctx, long defaultMs) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(KEY_ROTATION_INTERVAL_MS, defaultMs);
+    }
+
+    static void setRotationIntervalMs(Context ctx, long intervalMs) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(KEY_ROTATION_INTERVAL_MS, intervalMs).apply();
+    }
+
+    static java.util.Set<String> getShuffleSelection(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY_SHUFFLE_SELECTION, java.util.Collections.emptySet());
+    }
+
+    static void setShuffleSelection(Context ctx, java.util.Set<String> names) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putStringSet(KEY_SHUFFLE_SELECTION, new java.util.HashSet<>(names)).apply();
     }
 
     /** The pictures in the folder, sorted by name; null when the folder is not set or cannot be read. */
