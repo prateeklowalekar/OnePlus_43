@@ -253,7 +253,7 @@ public class WallpaperPickerActivity extends Activity {
 
         int count = selectedForShuffle.size();
         btnSelectAll.setText(count == staticItems.size() ? "Deselect All" : "Select All (" + count + "/" + staticItems.size() + ")");
-        shuffleSelectionSummary.setText(shuffleEnabled ? "Long-press wallpaper to toggle selection (" + count + " selected)" : "Turn Randomize ON to cycle selected wallpapers");
+        shuffleSelectionSummary.setText(shuffleEnabled ? "Click wallpapers to select/deselect for shuffle (" + count + " selected)" : "Turn Randomize ON to select which wallpapers cycle");
     }
 
     private void switchTab(boolean live) {
@@ -379,7 +379,24 @@ public class WallpaperPickerActivity extends Activity {
             h.thumb.setImageDrawable(null);
             h.thumb.setTag(item.file.getPath());
 
-            h.itemView.setOnClickListener(v -> pickItem(item));
+            h.itemView.setOnClickListener(v -> {
+                if (shuffleEnabled && !item.isLive) {
+                    // In Randomize mode: click toggles selection for shuffle and holds menu open
+                    if (selectedForShuffle.contains(item.name)) {
+                        selectedForShuffle.remove(item.name);
+                        Toast.makeText(WallpaperPickerActivity.this, "Deselected " + item.displayName, Toast.LENGTH_SHORT).show();
+                    } else {
+                        selectedForShuffle.add(item.name);
+                        Toast.makeText(WallpaperPickerActivity.this, "Selected " + item.displayName, Toast.LENGTH_SHORT).show();
+                    }
+                    WallpaperFolder.setShuffleSelection(WallpaperPickerActivity.this, selectedForShuffle);
+                    updateShuffleUI();
+                    notifyItemChanged(position);
+                } else {
+                    // Regular mode or live wallpaper: applies wallpaper and closes picker
+                    pickItem(item);
+                }
+            });
             h.itemView.setOnLongClickListener(v -> {
                 if (!item.isLive) {
                     if (selectedForShuffle.contains(item.name)) {
