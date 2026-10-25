@@ -191,20 +191,34 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         Map<String, Long> scores = new HashMap<>();
         for (Entry e : userApps) scores.put(e.pkg, scoreOf(e.pkg, minutes));
         for (Entry e : preinstalled) scores.put(e.pkg, scoreOf(e.pkg, minutes));
+        // Pinned favourites first in exact specified order, followed by other apps
         Comparator<Entry> byUse = (a, b) -> {
+            int fa = favourites.indexOf(a.pkg), fb = favourites.indexOf(b.pkg);
+            if (fa >= 0 || fb >= 0) {
+                return Integer.compare(fa < 0 ? Integer.MAX_VALUE : fa, fb < 0 ? Integer.MAX_VALUE : fb);
+            }
             int c = Long.compare(scores.get(b.pkg), scores.get(a.pkg));
             if (c != 0) return c;
-            int fa = favourites.indexOf(a.pkg), fb = favourites.indexOf(b.pkg);
-            if (fa != fb) return Integer.compare(fa < 0 ? Integer.MAX_VALUE : fa, fb < 0 ? Integer.MAX_VALUE : fb);
             return a.label.compareToIgnoreCase(b.label);
         };
         Collections.sort(userApps, byUse);
         Collections.sort(preinstalled, byUse);
 
-        // The dock: at least dockSize apps. Installed user apps first; preinstalled ones only fill the gap.
+        // The dock: favourites first, then installed user apps, then preinstalled
         List<Entry> fresh = new ArrayList<>();
-        for (Entry e : userApps) if (fresh.size() < dockSize) fresh.add(e);
-        for (Entry e : preinstalled) if (fresh.size() < dockSize) fresh.add(e);
+        // 1. Add all pinned favourites that are installed (whether user or preinstalled) in exact config order
+        for (String favPkg : favourites) {
+            for (Entry e : userApps) {
+                if (e.pkg.equals(favPkg) && !fresh.contains(e)) { fresh.add(e); break; }
+            }
+            for (Entry e : preinstalled) {
+                if (e.pkg.equals(favPkg) && !fresh.contains(e)) { fresh.add(e); break; }
+            }
+        }
+        // 2. Fill any remaining slots up to dockSize with most used apps
+        for (Entry e : userApps) if (fresh.size() < dockSize && !fresh.contains(e)) fresh.add(e);
+        for (Entry e : preinstalled) if (fresh.size() < dockSize && !fresh.contains(e)) fresh.add(e);
+
         // Installed apps not in the dock: alphabetical, as before.
         List<Entry> restUser = new ArrayList<>();
         for (Entry e : userApps) if (!fresh.contains(e)) restUser.add(e);
