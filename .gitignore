@@ -6,6 +6,8 @@ launcher/build/
 launcher/app/build/
 launcher/local.properties
 addons/*/local.properties
+web/node_modules/
+web/dist/
 # your own TV's dumps (serial, android_id, device names) stay local
 backup/
 # session screenshots and working notes (may show the Wi-Fi name or account avatar) stay local
