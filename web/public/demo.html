@@ -277,6 +277,9 @@
             </svg>
           </div>
 
+          <!-- Adaptive Spotlight for Nature / Space / Cars -->
+          <div id="adaptiveSpotlight" class="hidden w-full h-full rounded-full blur-md"></div>
+
         </div>
 
         <!-- 8-Column Dock Container: Clean, compact 4K horizontal spread with sleek icons -->
@@ -318,40 +321,56 @@
       </div>
     </div>
 
-    <!-- Character Selector -->
-    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between shadow-lg">
-      <div class="text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Select Wallpaper / Character</div>
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <button class="hero-btn active px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold border border-emerald-500" data-hero="doom">
+    <!-- Wallpaper Selector (Heroes + Nature + Supercars + Deep Space) -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-col justify-between shadow-lg">
+      <div class="text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider flex items-center justify-between">
+        <span>Select Any Wallpaper</span>
+        <span class="text-[10px] text-emerald-400 font-semibold">All 49 Available</span>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-1.5 text-xs">
+        <button class="hero-btn active px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold border border-emerald-500 text-left" data-hero="doom">
           🟢 Doctor Doom
         </button>
-        <button class="hero-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium" data-hero="spiderman">
+        <button class="hero-btn px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-left" data-hero="spiderman">
           🕷️ Spider-Man (Web)
         </button>
-        <button class="hero-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium" data-hero="ironman">
+        <button class="hero-btn px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-left" data-hero="ironman">
           🚀 Iron Man (Arc HUD)
         </button>
-        <button class="hero-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium" data-hero="loki">
+        <button class="hero-btn px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-left" data-hero="loki">
           ✨ Loki (Emerald/Gold)
+        </button>
+        <button class="hero-btn px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-left" data-hero="alps">
+          🏔️ Alps Mountains
+        </button>
+        <button class="hero-btn px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-left" data-hero="kawah">
+          🌋 Kawah Ijen Crater
+        </button>
+        <button class="hero-btn px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-left" data-hero="porsche">
+          🏎️ Porsche Taycan 5K
+        </button>
+        <button class="hero-btn px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-left" data-hero="space">
+          🌌 Deep Space Black Hole
         </button>
       </div>
     </div>
 
-    <!-- 4K Sizing & Fallback Info -->
+    <!-- Wallpaper & Sizing Info -->
     <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between shadow-lg">
       <div class="text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider flex items-center justify-between">
-        <span>Clean V1 Weather Widget</span>
-        <span class="text-emerald-400 text-[10px] font-bold">1:1 Native Style</span>
+        <span>Wallpaper Freedom</span>
+        <span class="text-emerald-400 text-[10px] font-bold">V1 & V2 Unlocked</span>
       </div>
       <div id="animationNote" class="text-xs text-slate-300 bg-slate-950/60 p-2 rounded border border-slate-800 space-y-1">
         <div class="text-emerald-400 font-semibold">Doctor Doom (Latverian Mist)</div>
         <p class="text-slate-400 text-[11px] leading-relaxed">
-          Refined 4K icon scaling gives max room to wallpaper art. Compact monochrome silhouettes with original fallback.
+          All 49 wallpapers are selectable in both V1 and V2. Heroes have signature dynamic effects; all others have sleek adaptive auras.
         </p>
       </div>
       <div class="mt-1.5 text-[10px] text-slate-400 flex items-center justify-between bg-slate-800/40 px-2 py-0.5 rounded">
-        <span>Weather Pill:</span>
-        <span class="text-emerald-300 font-medium">Single frosted pill (exact V1 match)</span>
+        <span>TV Selection:</span>
+        <span class="text-emerald-300 font-medium">Pick ANY wallpaper from Wallpaper Picker</span>
       </div>
     </div>
 
@@ -462,36 +481,69 @@
     const spidermanSpotlight = document.getElementById('spidermanSpotlight');
     const ironmanSpotlight = document.getElementById('ironmanSpotlight');
     const lokiSpotlight = document.getElementById('lokiSpotlight');
+    const adaptiveSpotlight = document.getElementById('adaptiveSpotlight');
 
-    // Hero Configs
+    // Full Wallpapers Config (Heroes + Nature + Supercars + Deep Space)
     const heroes = {
       doom: {
         badge: 'Doctor Doom (Natural Emerald)',
-        subtitle: 'Doctor Doom · Latverian Mist',
         wallpaper: '/wallpapers/doom.jpg',
         noteTitle: 'Doctor Doom (Latverian Mist)',
-        noteDesc: 'Refined 4K icon scaling gives max room to wallpaper art. Compact monochrome silhouettes with original fallback.'
+        noteDesc: 'All 49 wallpapers work in V1 and V2! Doctor Doom features subtle ambient emerald mist in mask shadows with Latverian green aura.',
+        spotlightType: 'doom'
       },
       spiderman: {
         badge: 'Spider-Man (Spun Web)',
-        subtitle: 'Symbiote Spider-Man · Midnight Web',
         wallpaper: '/wallpapers/spiderman.jpg',
         noteTitle: 'Spider-Man (Spun Web Backdrop)',
-        noteDesc: 'Refined 4K scale. Spun spider-web mandala frames focused app icon with midnight suit sheen.'
+        noteDesc: 'Midnight suit sheen ambient breathing. The selected icon is dynamically framed by an intricate spun spider-web mandala.',
+        spotlightType: 'spiderman'
       },
       ironman: {
         badge: 'Iron Man (Stark Arc HUD)',
-        subtitle: 'Tony Stark · Holographic Reticle',
         wallpaper: '/wallpapers/ironman.jpg',
         noteTitle: 'Iron Man (Stark Arc HUD)',
-        noteDesc: 'Rotating Stark Industries Arc Reactor HUD ring smoothly frames the selected icon with subtle chest pulse.'
+        noteDesc: 'Subtle Arc pulse. A rotating Stark Industries Arc Reactor HUD ring smoothly frames the selected icon.',
+        spotlightType: 'ironman'
       },
       loki: {
         badge: 'Loki (God of Stories)',
-        subtitle: 'Loki · Emerald & Gold Shimmer',
         wallpaper: '/wallpapers/loki.jpg',
         noteTitle: 'Loki (Emerald & Gold Shimmer)',
-        noteDesc: 'Asgardian royal green and gold celestial aura radiates behind the focused app with subtle Tesseract pulse.'
+        noteDesc: 'Asgardian royal green and gold celestial aura radiates behind the focused app with subtle Tesseract pulse.',
+        spotlightType: 'loki'
+      },
+      alps: {
+        badge: 'Alps Snow Mountains (8K)',
+        wallpaper: '/wallpapers/alps.jpg',
+        noteTitle: 'Alps Snow Mountains (Adaptive)',
+        noteDesc: 'In V2, any nature wallpaper uses clean alpine ice-blue adaptive glow behind the 8-icon locked dock.',
+        spotlightType: 'adaptive',
+        adaptiveColor: 'bg-cyan-400/25'
+      },
+      kawah: {
+        badge: 'Kawah Ijen Crater (8K)',
+        wallpaper: '/wallpapers/kawah.jpg',
+        noteTitle: 'Kawah Ijen Crater (Adaptive)',
+        noteDesc: 'Electric turquoise volcanic aura shines behind the selected app icon on the locked dock line.',
+        spotlightType: 'adaptive',
+        adaptiveColor: 'bg-teal-400/30'
+      },
+      porsche: {
+        badge: 'Porsche Taycan 4S (5K)',
+        wallpaper: '/wallpapers/porsche.jpg',
+        noteTitle: 'Porsche Taycan 4S (Adaptive)',
+        noteDesc: 'Supercar automotive aesthetic: sleek horizon cyber cyan glow highlights active app seamlessly.',
+        spotlightType: 'adaptive',
+        adaptiveColor: 'bg-sky-400/30'
+      },
+      space: {
+        badge: 'Sagittarius A Deep Space (5K)',
+        wallpaper: '/wallpapers/space.jpg',
+        noteTitle: 'Sagittarius A Black Hole (Adaptive)',
+        noteDesc: 'Cosmic amber and violet accretion disk halo illuminates the selected icon in 4K resolution.',
+        spotlightType: 'adaptive',
+        adaptiveColor: 'bg-amber-500/25'
       }
     };
 
@@ -655,10 +707,18 @@
       document.getElementById('lokiAmbient').classList.toggle('hidden', heroKey !== 'loki');
 
       // Toggle dock hero spotlights
-      doomSpotlight.classList.toggle('hidden', heroKey !== 'doom');
-      spidermanSpotlight.classList.toggle('hidden', heroKey !== 'spiderman');
-      ironmanSpotlight.classList.toggle('hidden', heroKey !== 'ironman');
-      lokiSpotlight.classList.toggle('hidden', heroKey !== 'loki');
+      doomSpotlight.classList.toggle('hidden', h.spotlightType !== 'doom');
+      spidermanSpotlight.classList.toggle('hidden', h.spotlightType !== 'spiderman');
+      ironmanSpotlight.classList.toggle('hidden', h.spotlightType !== 'ironman');
+      lokiSpotlight.classList.toggle('hidden', h.spotlightType !== 'loki');
+      
+      // Adaptive Spotlight
+      if (h.spotlightType === 'adaptive') {
+        adaptiveSpotlight.className = `w-full h-full rounded-full blur-md ${h.adaptiveColor}`;
+        adaptiveSpotlight.classList.remove('hidden');
+      } else {
+        adaptiveSpotlight.classList.add('hidden');
+      }
 
       // Update button active state
       document.querySelectorAll('.hero-btn').forEach(btn => {
