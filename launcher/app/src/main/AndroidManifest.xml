@@ -83,7 +83,7 @@
             android:theme="@style/Theme.TvHome.Picker" />
         <activity
             android:name=".LauncherSettingsActivity"
-            android:exported="false"
+            android:exported="true"
             android:excludeFromRecents="true"
             android:screenOrientation="landscape" />
         <activity

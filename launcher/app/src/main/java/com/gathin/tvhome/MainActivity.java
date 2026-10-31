@@ -90,6 +90,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView greeting;
     private View btnInputs;
     private TextView btnWifi;
+    private View btnSettings;
+    private Config cfg;
     private TextView shamsiDate;
     private boolean shamsi;
     /** Optional time-of-day backdrop (config.xml, sky_intensity); 0 keeps it hidden. */
@@ -130,6 +132,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private Config prayerConfig;
     private TextView prayerLine;
     private TextView weatherLine;
+    private TextView btnRowPill;
     private VideoWallpaperPlayer videoWallpaper;
     private boolean isHomeResumed = false;
 
@@ -202,7 +205,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         setContentView(R.layout.activity_main);
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
-        Config cfg = Config.load(this);
+        cfg = Config.load(this);
         COLUMNS = cfg.columns;
         animations = cfg.animations;
         advancedEffects = cfg.animations && cfg.advancedEffects;
@@ -288,7 +291,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }
             }
         });
-        grid.addItemDecoration(new DockDecoration(COLUMNS, density, cfg.dockBand));
+        grid.addItemDecoration(new DockDecoration(COLUMNS, density, cfg.dockBand, cfg.isV2()));
         if (animations) {
             int enterAnim = reducedMotion ? R.anim.tile_enter_reduced : R.anim.tile_enter;
             float enterDelay = reducedMotion ? 0f : 0.06f;
@@ -298,24 +301,35 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
         grid.setAdapter(adapter);
 
-        // tvOS layout: push the dock row towards the bottom of the screen, leaving room for
+        // tvOS / V2 layout: push the dock row towards the bottom of the screen, leaving room for
         // rows_below_dock grid rows under it; the rest of the grid stays below until you press Down.
         int rowsBelowDock = cfg.rowsBelowDock;
+        boolean isV2 = cfg.isV2();
         grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int h = b - t;
             // Item height follows the tile size, which follows the column count (AppAdapter.tileWidthPx).
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
-            int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density)), density);
+            int itemH = isV2
+                    ? AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, true), true), density, true)
+                    : AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, false), false), density, false);
             int dockRow = itemH + (int) ((6 + 12) * density);   // item height plus DockDecoration offsets
-            int gridRows = itemH * rowsBelowDock;
-            int want = Math.max(0, h - dockRow - gridRows - (int) (30 * density));
-            if (grid.getPaddingTop() != want) {
-                grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), grid.getPaddingBottom());
+            int gridRows = isV2 ? 0 : itemH * rowsBelowDock;
+            int bottomMargin = isV2 ? (int) (36 * density) : (int) (30 * density);
+            int want = Math.max(0, h - dockRow - gridRows - bottomMargin);
+            int bottomPad = isV2 ? (int) (36 * density) : grid.getPaddingBottom();
+            if (grid.getPaddingTop() != want || grid.getPaddingBottom() != bottomPad) {
+                grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), bottomPad);
             }
         });
 
+        btnRowPill = findViewById(R.id.btnRowPill);
+        if (btnRowPill != null) {
+            btnRowPill.setOnClickListener(v -> toggleV2Row());
+        }
+        updatePagePill();
+
         btnInputs = findViewById(R.id.btnInputs);
-        View btnSettings = findViewById(R.id.btnSettings);
+        btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
@@ -340,17 +354,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 focusTile(lastFocused % COLUMNS);
                 return true;
             }
-            int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : R.id.btnWifi;
+            int firstButton = (btnRowPill != null && btnRowPill.getVisibility() == View.VISIBLE) ? R.id.btnRowPill
+                    : (btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : R.id.btnWifi);
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
+        if (btnRowPill != null) btnRowPill.setOnKeyListener(pillKeys);
         btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            for (View button : new View[]{btnInputs, btnWifi, btnSettings}) {
+            View[] buttons = btnRowPill != null
+                    ? new View[]{btnRowPill, btnInputs, btnWifi, btnSettings}
+                    : new View[]{btnInputs, btnWifi, btnSettings};
+            for (View button : buttons) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
                         .setDuration(160).start());
@@ -610,6 +629,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        Config latest = Config.load(this);
+        if (cfg != null && (latest.columns != COLUMNS || !latest.launcherVersion.equals(cfg.launcherVersion) || latest.animations != animations || latest.advancedEffects != advancedEffects)) {
+            recreate();
+            return;
+        }
         isHomeResumed = true;
         promptsPaused = false;
         if (rebuildOnResume) {
@@ -623,6 +647,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         updateWifiLabel();
         updateInputsButton();
         updateWallpaper();
+        updatePagePill();
         if (videoWallpaper != null && videoWallpaper.hasVideo()) {
             videoWallpaper.start();
         } else if (videoWallpaper != null) {
@@ -683,6 +708,28 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         adapter.reload(cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none));
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
+        updatePagePill();
+    }
+
+    private void updatePagePill() {
+        if (btnRowPill == null) return;
+        if (adapter != null && adapter.isV2() && adapter.getPageCount() > 1) {
+            int current = adapter.getActivePage() + 1;
+            int total = adapter.getPageCount();
+            boolean isLast = current == total;
+            btnRowPill.setText("ROW " + current + " " + (isLast ? "▲ Up" : "▼ Down"));
+            btnRowPill.setVisibility(View.VISIBLE);
+        } else {
+            btnRowPill.setVisibility(View.GONE);
+        }
+    }
+
+    private void toggleV2Row() {
+        if (adapter == null || !adapter.isV2()) return;
+        int next = (adapter.getActivePage() + 1) % adapter.getPageCount();
+        adapter.setActivePage(next);
+        updatePagePill();
+        grid.post(() -> focusTile(0));
     }
 
     /**
@@ -783,6 +830,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Pops up a floating bubble/word-cloud label directly above the currently focused tile. */
     private void showHero(int position, float tileLeft, float tileTop, int tileWidth) {
+        if (adapter != null && adapter.isV2()) {
+            heroName.setVisibility(View.GONE);
+            return;
+        }
+        heroName.setVisibility(View.VISIBLE);
         String label = adapter.labelAt(position);
         heroName.setText(label);
         heroName.measure(
@@ -848,6 +900,39 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
+        if (adapter.isV2()) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                return GridNavigation.atHorizontalEdge(position, adapter.getItemCount(), COLUMNS,
+                        rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (adapter.getActivePage() > 0) {
+                    adapter.setActivePage(adapter.getActivePage() - 1);
+                    updatePagePill();
+                    grid.post(() -> focusTile(Math.min(position, adapter.getItemCount() - 1)));
+                    return true;
+                }
+                if (position >= COLUMNS / 2) {
+                    btnSettings.requestFocus();
+                } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
+                    weatherLine.requestFocus();
+                } else {
+                    (btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (adapter.getActivePage() < adapter.getPageCount() - 1) {
+                    adapter.setActivePage(adapter.getActivePage() + 1);
+                    updatePagePill();
+                    grid.post(() -> focusTile(Math.min(position, adapter.getItemCount() - 1)));
+                    return true;
+                }
+                return true; // last page: stay put in dock
+            }
+            return false;
+        }
+
         int count = adapter.getItemCount();
         int target;
         // Horizontal: swallow the key at a row's ends so focus never wraps to the next row or
@@ -857,7 +942,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
+            if (position < COLUMNS) {
+                if (position >= COLUMNS / 2) {
+                    btnSettings.requestFocus();
+                } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
+                    weatherLine.requestFocus();
+                } else {
+                    (btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
+                }
+                return true;
+            }
             target = position - COLUMNS;
         } else {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;

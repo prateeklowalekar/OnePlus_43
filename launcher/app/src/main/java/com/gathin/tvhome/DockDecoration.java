@@ -18,18 +18,24 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     private final int dockSize;
     private final float density;
     private final boolean drawBand;
+    private final boolean isV2;
     private final Paint band = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
 
-    DockDecoration(int dockSize, float density, boolean drawBand) {
+    DockDecoration(int dockSize, float density, boolean drawBand, boolean isV2) {
         this.dockSize = dockSize;
         this.density = density;
         this.drawBand = drawBand;
-        band.setColor(0xFF141416);
+        this.isV2 = isV2;
+        band.setColor(isV2 ? 0xB30A0E17 : 0xFF141416);
         edge.setStyle(Paint.Style.STROKE);
-        edge.setStrokeWidth(density);
-        edge.setColor(0x1FFFFFFF);
+        edge.setStrokeWidth(isV2 ? 1.5f * density : density);
+        edge.setColor(isV2 ? 0x38FFFFFF : 0x1FFFFFFF);
+    }
+
+    DockDecoration(int dockSize, float density, boolean drawBand) {
+        this(dockSize, density, drawBand, false);
     }
 
     @Override
@@ -44,7 +50,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
 
     @Override
     public void onDraw(@NonNull Canvas c, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
-        if (!drawBand) return;
+        if (!drawBand || isV2) return;
         boolean any = false;
         for (int i = 0; i < parent.getChildCount(); i++) {
             View child = parent.getChildAt(i);
@@ -64,9 +70,13 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
             }
         }
         if (!any) return;
-        float pad = 14 * density;
-        rect.inset(-pad, -pad);
-        float radius = 26 * density;
+        float padX = (isV2 ? 18f : 14f) * density;
+        float padY = (isV2 ? 12f : 14f) * density;
+        rect.left -= padX;
+        rect.right += padX;
+        rect.top -= padY;
+        rect.bottom += padY;
+        float radius = (isV2 ? 24f : 26f) * density;
         c.drawRoundRect(rect, radius, radius, band);
         c.drawRoundRect(rect, radius, radius, edge);
     }

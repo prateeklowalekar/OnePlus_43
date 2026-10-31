@@ -21,6 +21,8 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,6 +30,7 @@ import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -93,12 +96,16 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     static final float FOCUS_SCALE = 1.18f;
     /** Design size of a tile (dp); tiles shrink from here when the columns don't fit, see tileWidthPx. */
     static final float DESIGN_W_DP = 180f, DESIGN_H_DP = 101f;
+    static final float DESIGN_SQUIRCLE_DP = 82f;
 
-    /**
-     * Tile width for a grid of this inner width: the cell minus room for the focus zoom and the glass
-     * highlight, capped at the design size so 4 columns on a 1080p TV look exactly as before.
-     */
     static int tileWidthPx(int innerWidthPx, int columns, float density) {
+        return tileWidthPx(innerWidthPx, columns, density, false);
+    }
+
+    static int tileWidthPx(int innerWidthPx, int columns, float density, boolean isV2) {
+        if (isV2) {
+            return Math.round(DESIGN_SQUIRCLE_DP * density);
+        }
         int design = Math.round(DESIGN_W_DP * density);
         if (innerWidthPx <= 0 || columns <= 0) return design;
         int cell = innerWidthPx / columns;
@@ -107,11 +114,21 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     static int tileHeightPx(int tileWidthPx) {
+        return tileHeightPx(tileWidthPx, false);
+    }
+
+    static int tileHeightPx(int tileWidthPx, boolean isV2) {
+        if (isV2) return tileWidthPx;
         return Math.round(tileWidthPx * DESIGN_H_DP / DESIGN_W_DP);
     }
 
     /** Height of one grid item: the tile, the name label under it and the item's own padding. */
     static int itemHeightPx(int tileHeightPx, float density) {
+        return itemHeightPx(tileHeightPx, density, false);
+    }
+
+    static int itemHeightPx(int tileHeightPx, float density, boolean isV2) {
+        if (isV2) return tileHeightPx + Math.round(16 * density);
         return tileHeightPx + Math.round(45 * density);
     }
 
@@ -134,11 +151,14 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     private final List<Entry> items = new ArrayList<>();
     /** The System folder: preinstalled apps not in the dock. */
     private final List<Entry> systemApps = new ArrayList<>();
+    private final boolean isV2;
+    private int activePage = 0;
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
         this.listener = listener;
         this.dockSize = dockSize;
+        this.isV2 = cfg.isV2();
         this.favourites = cfg.dockApps;
         this.hidden = new HashSet<>(cfg.hiddenApps);
         this.animations = cfg.animations;
@@ -257,7 +277,28 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         }
         items.clear();
         items.addAll(fresh);
+        if (activePage >= getPageCount()) activePage = Math.max(0, getPageCount() - 1);
         notifyDataSetChanged();
+    }
+
+    public boolean isV2() {
+        return isV2;
+    }
+
+    public int getActivePage() {
+        return activePage;
+    }
+
+    public int getPageCount() {
+        if (!isV2 || dockSize <= 0) return 1;
+        return Math.max(1, (items.size() + dockSize - 1) / dockSize);
+    }
+
+    public boolean setActivePage(int page) {
+        if (page < 0 || page >= getPageCount() || page == activePage) return false;
+        activePage = page;
+        notifyDataSetChanged();
+        return true;
     }
 
     /** Usage score of one app: foreground minutes and launches from here, plus a head start for favourites. */
@@ -315,37 +356,105 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         float density = parent.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
-        int w = tileWidthPx(inner, dockSize, density), h = tileHeightPx(w);
+        int w = tileWidthPx(inner, dockSize, density, isV2), h = tileHeightPx(w, isV2);
         View card = v.findViewById(R.id.card);
         ViewGroup.LayoutParams cardLp = card.getLayoutParams();
         cardLp.width = w;
         cardLp.height = h;
         card.setLayoutParams(cardLp);
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion);
+        if (isV2) card.setBackground(null);
+        return new Holder(v, listener, animations, advancedEffects, reducedMotion, isV2);
+    }
+
+    static Drawable getV2Glyph(Context ctx, String pkg) {
+        if (pkg == null) return null;
+        if (pkg.contains("youtube.tvmusic")) {
+            return ctx.getDrawable(R.drawable.ic_v2_ytmusic);
+        } else if (pkg.contains("youtube")) {
+            return ctx.getDrawable(R.drawable.ic_v2_youtube);
+        } else if (pkg.contains("netflix")) {
+            return ctx.getDrawable(R.drawable.ic_v2_netflix);
+        } else if (pkg.contains("hotstar")) {
+            return ctx.getDrawable(R.drawable.ic_v2_hotstar);
+        } else if (pkg.contains("amazonvideo") || pkg.contains("primevideo")) {
+            return ctx.getDrawable(R.drawable.ic_v2_prime);
+        } else if (pkg.contains("airtel")) {
+            return ctx.getDrawable(R.drawable.ic_v2_airtel);
+        } else if (pkg.contains("apple.atve") || pkg.contains("appletv")) {
+            return ctx.getDrawable(R.drawable.ic_v2_apple);
+        } else if (pkg.contains("vending")) {
+            return ctx.getDrawable(R.drawable.ic_v2_playstore);
+        } else if (pkg.contains("SystemFolder") || pkg.contains("system")) {
+            return ctx.getDrawable(R.drawable.ic_v2_system);
+        }
+        return null;
     }
 
     @Override
     public void onBindViewHolder(@NonNull Holder h, int position) {
-        Entry e = items.get(position);
+        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        if (actualIndex < 0 || actualIndex >= items.size()) return;
+        Entry e = items.get(actualIndex);
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
-        h.card.setScaleX(focused && animations ? focusScale() : 1f);
-        h.card.setScaleY(focused && animations ? focusScale() : 1f);
-        h.card.setTranslationY(focused && advancedEffects ? -4f * ctx.getResources().getDisplayMetrics().density : 0f);
-        h.card.setTranslationZ(focused && advancedEffects ? 8f * ctx.getResources().getDisplayMetrics().density : 0f);
-        h.banner.setScaleX(focused && advancedEffects ? 1.035f : 1f);
-        h.banner.setScaleY(focused && advancedEffects ? 1.035f : 1f);
-        if (e.banner != null) {
-            h.banner.setImageDrawable(e.banner);
-            h.banner.setVisibility(View.VISIBLE);
-            h.icon.setVisibility(View.GONE);
-            h.label.setVisibility(View.GONE);
-        } else {
-            h.banner.setImageDrawable(null);
+        if (isV2) {
             h.banner.setVisibility(View.GONE);
-            h.icon.setImageDrawable(e.icon);
             h.icon.setVisibility(View.VISIBLE);
-            h.label.setText(e.label);
             h.label.setVisibility(View.VISIBLE);
+            h.label.setText(e.label);
+            h.label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+            h.label.setTextColor(0xFFFFFFFF);
+
+            float density = ctx.getResources().getDisplayMetrics().density;
+            FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) h.icon.getLayoutParams();
+            iconLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+            iconLp.topMargin = Math.round(8f * density);
+            int iconSize = Math.round(38f * density);
+            iconLp.width = iconSize;
+            iconLp.height = iconSize;
+            h.icon.setLayoutParams(iconLp);
+
+            FrameLayout.LayoutParams labelLp = (FrameLayout.LayoutParams) h.label.getLayoutParams();
+            labelLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+            labelLp.bottomMargin = Math.round(4f * density);
+            h.label.setLayoutParams(labelLp);
+
+            Drawable glyph = getV2Glyph(ctx, e.pkg);
+            h.icon.setImageDrawable(glyph != null ? glyph : (e.icon != null ? e.icon : e.banner));
+
+            if (focused) {
+                h.card.setBackgroundResource(R.drawable.v2_spotlight_glow);
+                h.card.setScaleX(animations ? 1.22f : 1f);
+                h.card.setScaleY(animations ? 1.22f : 1f);
+                h.icon.setAlpha(1.0f);
+                h.label.setAlpha(1.0f);
+            } else {
+                h.card.setBackground(null);
+                h.card.setScaleX(1.0f);
+                h.card.setScaleY(1.0f);
+                h.icon.setAlpha(0.50f);
+                h.label.setAlpha(0.0f);
+            }
+        } else {
+            h.card.setScaleX(focused && animations ? focusScale() : 1f);
+            h.card.setScaleY(focused && animations ? focusScale() : 1f);
+            h.card.setTranslationY(focused && advancedEffects ? -4f * ctx.getResources().getDisplayMetrics().density : 0f);
+            h.card.setTranslationZ(focused && advancedEffects ? 8f * ctx.getResources().getDisplayMetrics().density : 0f);
+            h.card.setBackgroundResource(R.drawable.tile_bg);
+            h.banner.setScaleX(focused && advancedEffects ? 1.035f : 1f);
+            h.banner.setScaleY(focused && advancedEffects ? 1.035f : 1f);
+            if (e.banner != null) {
+                h.banner.setImageDrawable(e.banner);
+                h.banner.setVisibility(View.VISIBLE);
+                h.icon.setVisibility(View.GONE);
+                h.label.setVisibility(View.GONE);
+            } else {
+                h.banner.setImageDrawable(null);
+                h.banner.setVisibility(View.GONE);
+                h.icon.setImageDrawable(e.icon);
+                h.icon.setVisibility(View.VISIBLE);
+                h.label.setText(e.label);
+                h.label.setVisibility(View.VISIBLE);
+            }
         }
         h.card.setOnClickListener(v -> launch(e));
         h.card.setOnLongClickListener(v -> {
@@ -369,8 +478,9 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     void launchAt(int position) {
-        if (position >= 0 && position < items.size()) {
-            launch(items.get(position));
+        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        if (actualIndex >= 0 && actualIndex < items.size()) {
+            launch(items.get(actualIndex));
         }
     }
 
@@ -403,30 +513,46 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
 
     @Override
     public int getItemCount() {
+        if (isV2) {
+            int start = activePage * dockSize;
+            if (start >= items.size()) return 0;
+            return Math.min(dockSize, items.size() - start);
+        }
         return items.size();
     }
 
     @Override
     public long getItemId(int position) {
-        return items.get(position).component.flattenToShortString().hashCode();
+        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        if (actualIndex < 0 || actualIndex >= items.size()) return RecyclerView.NO_ID;
+        return items.get(actualIndex).component.flattenToShortString().hashCode();
     }
 
     /** Stable key for the app at a position (its component), or null. */
     String keyAt(int position) {
-        return position >= 0 && position < items.size() ? items.get(position).component.flattenToShortString() : null;
+        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        return actualIndex >= 0 && actualIndex < items.size() ? items.get(actualIndex).component.flattenToShortString() : null;
     }
 
     /** Position of the app with this key, or -1 when it is gone. */
     int positionOf(String key) {
         if (key == null) return -1;
         for (int i = 0; i < items.size(); i++) {
-            if (items.get(i).component.flattenToShortString().equals(key)) return i;
+            if (items.get(i).component.flattenToShortString().equals(key)) {
+                if (isV2) {
+                    int pageStart = activePage * dockSize;
+                    if (i >= pageStart && i < pageStart + dockSize) return i - pageStart;
+                    return -1;
+                }
+                return i;
+            }
         }
         return -1;
     }
 
     String labelAt(int position) {
-        return position >= 0 && position < items.size() ? items.get(position).label : "";
+        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        return actualIndex >= 0 && actualIndex < items.size() ? items.get(actualIndex).label : "";
     }
 
     float focusScale() {
@@ -447,9 +573,12 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         final boolean advancedEffects;
         final boolean reducedMotion;
 
+        final boolean isV2;
+
         Holder(View v, TileListener listener, boolean animations, boolean advancedEffects,
-               boolean reducedMotion) {
+               boolean reducedMotion, boolean isV2) {
             super(v);
+            this.isV2 = isV2;
             card = v.findViewById(R.id.card);
             banner = v.findViewById(R.id.banner);
             icon = v.findViewById(R.id.icon);
@@ -459,14 +588,17 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             this.reducedMotion = reducedMotion;
 
             final float density = v.getResources().getDisplayMetrics().density;
-            card.setOutlineProvider(new ViewOutlineProvider() {
-                @Override
-                public void getOutline(View view, Outline outline) {
-                    // 16dp at the design width, scaled down with the tile so small tiles keep the same shape.
-                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), cornerRadius(view.getWidth(), density));
-                }
-            });
-            card.setClipToOutline(true);
+            if (!isV2) {
+                card.setOutlineProvider(new ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(View view, Outline outline) {
+                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), cornerRadius(view.getWidth(), density));
+                    }
+                });
+                card.setClipToOutline(true);
+            } else {
+                card.setClipToOutline(false);
+            }
 
             card.setOnKeyListener((view, keyCode, event) -> {
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
@@ -478,6 +610,18 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
 
             card.setOnFocusChangeListener((view, focused) -> {
                 view.animate().cancel();
+                if (isV2) {
+                    float s = focused && animations ? 1.22f : 1f;
+                    view.setBackgroundResource(focused ? R.drawable.v2_spotlight_glow : 0);
+                    view.animate().scaleX(s).scaleY(s).setDuration(200).start();
+                    icon.animate().alpha(focused ? 1.0f : 0.50f).setDuration(200).start();
+                    label.animate().alpha(focused ? 1.0f : 0.0f).setDuration(200).start();
+                    int pos = getBindingAdapterPosition();
+                    if (focused && listener != null && pos != RecyclerView.NO_POSITION) {
+                        listener.onTileFocused(pos, view);
+                    }
+                    return;
+                }
                 banner.animate().cancel();
                 float scale = !animations ? 1f : advancedEffects ? 1.22f : FOCUS_SCALE;
                 float s = focused ? scale : 1f;

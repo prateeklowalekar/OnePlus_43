@@ -80,6 +80,12 @@ final class Config {
     final boolean dreamPrayer;
     /** Whether the overlay file was present and parsed. */
     final boolean overlayApplied;
+    /** "v1" (Classic Glass) or "v2" (Avengers Dynamics). */
+    final String launcherVersion;
+
+    boolean isV2() {
+        return "v2".equalsIgnoreCase(launcherVersion);
+    }
 
     private Config(List<String> dockApps, List<String> hiddenApps, String liveTvPackage, String liveTvAction,
                    String sourcePanelService, String sourcePanelAction, String inputAction,
@@ -88,7 +94,7 @@ final class Config {
                    boolean showHomeSettingsShortcut, int backgroundColor, int skyIntensity,
                    File wallpaper, File wallpaperFolder, int wallpaperRotateMinutes,
                    boolean dreamPhotos, int dreamPhotoMinutes, PrayerTimes.Place prayerPlace, int hijriOffsetDays,
-                   boolean dreamPrayer, boolean overlayApplied) {
+                   boolean dreamPrayer, boolean overlayApplied, String launcherVersion) {
         this.dockApps = Collections.unmodifiableList(dockApps);
         this.hiddenApps = Collections.unmodifiableList(hiddenApps);
         this.liveTvPackage = liveTvPackage;
@@ -118,6 +124,7 @@ final class Config {
         this.hijriOffsetDays = hijriOffsetDays;
         this.dreamPrayer = dreamPrayer && prayerPlace != null;
         this.overlayApplied = overlayApplied;
+        this.launcherVersion = launcherVersion != null ? launcherVersion : "v2";
     }
 
     /** The folder the theme tools push into; null when external storage is unavailable. */
@@ -205,8 +212,13 @@ final class Config {
         // current theme without clearing choices from an older launcher version.
         SharedPreferences choices = ctx.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE);
         syncThemeChoices(choices, dir, file);
-        int chosenColumns = choices.getInt("columns", columns);
-        if (chosenColumns >= 4 && chosenColumns <= 7) columns = chosenColumns;
+        String version = choices.getString("launcher_version", "v2");
+        if (choices.contains("columns")) {
+            int chosenColumns = choices.getInt("columns", columns);
+            if (chosenColumns >= 4 && chosenColumns <= 8) columns = chosenColumns;
+        } else {
+            columns = "v1".equalsIgnoreCase(version) ? 4 : 8;
+        }
         animations = choices.getBoolean("animations", animations);
         advancedEffects = choices.getBoolean("advanced_effects", advancedEffects);
         File wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
@@ -221,7 +233,7 @@ final class Config {
                 wallpaperFolder.isEmpty() ? null : new File(wallpaperFolder), Math.max(0, rotateMinutes),
                 dreamPhotos, Math.max(1, dreamPhotoMinutes),
                 prayer ? PrayerTimes.Place.parse(prayerCity, prayerLat, prayerLon, prayerZone, fajrAngle, ishaAngle, asrFactor) : null,
-                hijriOffset, dreamPrayer, applied);
+                hijriOffset, dreamPrayer, applied, version);
     }
 
     private static void syncThemeChoices(SharedPreferences choices, File dir, File config) {
