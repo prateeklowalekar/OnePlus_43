@@ -1,9 +1,10 @@
 # Weather
 
-The weather for one city, full screen on the TV: now (temperature, feels-like, conditions), the US air quality
-index as a coloured pill, and the next three days. For the [Clean Your TV](../../README.md) launcher it declares a
-[module card](../../docs/modules.md), so once you answer **Show card** its tile reads "Weather" with a
-sky-blue glow; on any other Android TV home it is an ordinary app.
+The weather for one city, full screen on the TV: current conditions (temperature, feels-like, weather state),
+an interactive hourly forecast trend for the remaining hours of the day (temperature, relative humidity, and
+US AQI colored chip), and an interactive 7-day forecast. For the [Clean Your TV](../../README.md) launcher it
+declares a [module card](../../docs/modules.md), so once you answer **Show card** its tile reads "Weather" with
+a sky-blue glow; on any other Android TV home it is an ordinary app.
 
 ![The weather page](https://raw.githubusercontent.com/Sumyabazar1/cleanyourtv/pr-assets/addon-weather/addon-3-weather.png)
 
@@ -12,6 +13,10 @@ sky-blue glow; on any other Android TV home it is an ordinary app.
 - **Data** comes from [Open-Meteo](https://open-meteo.com/), which needs no account or key: the weather from
   DWD's ICON model (Open-Meteo's default blend called light snow over Ulaanbaatar "overcast"; ICON matched
   what was falling), and the air quality from the Copernicus (CAMS) model, shown on the US AQI scale.
+- **Hourly trend & air quality:** A horizontal hourly strip displays the remaining hours of today with an
+  interpolated temperature trend bar, relative humidity (`💧 %`), and a color-coded US AQI rating pill.
+- **Interactive daily forecast:** The 7-day forecast cards are fully focusable and clickable with the TV remote.
+  Pressing OK on any day card inspects that day's complete 24-hour hourly forecast and summary.
 - **Snow, not rain, near freezing.** The models type precipitation by the air temperature and call snow
   "light rain" at 1 °C (ICON and GFS did, in a Ulaanbaatar blizzard). The app decides by the wet-bulb
   temperature instead, which counts how dry the air is: at 1 °C or below, rain and drizzle are shown as snow.
