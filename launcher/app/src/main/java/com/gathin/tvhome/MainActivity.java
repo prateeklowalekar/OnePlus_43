@@ -313,9 +313,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     : AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, false), false), density, false);
             int dockRow = isV2 ? itemH : itemH + (int) ((6 + 12) * density);   // DockDecoration offset only in V1
             int gridRows = isV2 ? 0 : itemH * rowsBelowDock;
-            int bottomMargin = isV2 ? (int) (14 * density) : (int) (30 * density);
+            int bottomMargin = isV2 ? (int) (10 * density) : (int) (30 * density);
             int want = Math.max(0, h - dockRow - gridRows - bottomMargin);
-            int bottomPad = isV2 ? (int) (14 * density) : grid.getPaddingBottom();
+            int bottomPad = isV2 ? (int) (10 * density) : grid.getPaddingBottom();
             if (grid.getPaddingTop() != want || grid.getPaddingBottom() != bottomPad) {
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), bottomPad);
             }
@@ -767,6 +767,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
         focusedCard = card;
+        if (adapter.isV2()) {
+            return;
+        }
         // Tile rect in root coordinates, using layout positions (ignores the scale animation).
         Rect r = new Rect(0, 0, card.getWidth(), card.getHeight());
         root.offsetDescendantRectToMyCoords(card, r);
@@ -873,8 +876,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (adapter.getActivePage() > 0) {
-                    adapter.setActivePage(adapter.getActivePage() - 1);
-                    grid.post(() -> focusTile(Math.min(position, adapter.getItemCount() - 1)));
+                    adapter.setActivePage(adapter.getActivePage() - 1, grid);
+                    int targetPos = Math.min(position, adapter.getItemCount() - 1);
+                    if (targetPos != position) {
+                        focusTile(targetPos);
+                    }
                     return true;
                 }
                 if (position >= COLUMNS / 2) {
@@ -888,8 +894,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (adapter.getActivePage() < adapter.getPageCount() - 1) {
-                    adapter.setActivePage(adapter.getActivePage() + 1);
-                    grid.post(() -> focusTile(Math.min(position, adapter.getItemCount() - 1)));
+                    adapter.setActivePage(adapter.getActivePage() + 1, grid);
+                    int targetPos = Math.min(position, adapter.getItemCount() - 1);
+                    if (targetPos != position) {
+                        focusTile(targetPos);
+                    }
                     return true;
                 }
                 return true; // last page: stay put in dock
@@ -941,11 +950,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return;
         }
         // Not laid out yet: scroll there, then focus once the scroll settles.
-        if (!animations) {
+        if (adapter.isV2() || !animations) {
             grid.scrollToPosition(pos);
             grid.post(() -> {
                 RecyclerView.ViewHolder h = grid.findViewHolderForAdapterPosition(pos);
-                if (h != null) h.itemView.findViewById(R.id.card).requestFocus();
+                if (h != null) {
+                    View c = h.itemView.findViewById(R.id.card);
+                    if (c != null) c.requestFocus();
+                }
             });
             return;
         }

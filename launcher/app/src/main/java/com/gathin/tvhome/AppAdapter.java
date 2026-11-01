@@ -97,7 +97,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     static final float FOCUS_SCALE = 1.18f;
     /** Design size of a tile (dp); tiles shrink from here when the columns don't fit, see tileWidthPx. */
     static final float DESIGN_W_DP = 180f, DESIGN_H_DP = 101f;
-    static final float DESIGN_SQUIRCLE_DP = 72f;
+    static final float DESIGN_SQUIRCLE_DP = 58f;
 
     static int tileWidthPx(int innerWidthPx, int columns, float density) {
         return tileWidthPx(innerWidthPx, columns, density, false);
@@ -129,7 +129,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     static int itemHeightPx(int tileHeightPx, float density, boolean isV2) {
-        if (isV2) return tileHeightPx + Math.round(16 * density);
+        if (isV2) return tileHeightPx + Math.round(8 * density);
         return tileHeightPx + Math.round(45 * density);
     }
 
@@ -296,8 +296,27 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     public boolean setActivePage(int page) {
+        return setActivePage(page, null);
+    }
+
+    public boolean setActivePage(int page, RecyclerView rv) {
         if (page < 0 || page >= getPageCount() || page == activePage) return false;
         activePage = page;
+        if (rv != null) {
+            int count = getItemCount();
+            for (int i = 0; i < dockSize; i++) {
+                RecyclerView.ViewHolder vh = rv.findViewHolderForAdapterPosition(i);
+                if (vh instanceof Holder) {
+                    if (i < count) {
+                        vh.itemView.setVisibility(View.VISIBLE);
+                        onBindViewHolder((Holder) vh, i);
+                    } else {
+                        vh.itemView.setVisibility(View.INVISIBLE);
+                    }
+                }
+            }
+            return true;
+        }
         notifyDataSetChanged();
         return true;
     }
@@ -363,7 +382,39 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         cardLp.width = w;
         cardLp.height = h;
         card.setLayoutParams(cardLp);
-        if (isV2) card.setBackground(null);
+        if (isV2) {
+            card.setBackground(null);
+            View banner = v.findViewById(R.id.banner);
+            View icon = v.findViewById(R.id.icon);
+            TextView label = v.findViewById(R.id.label);
+            banner.setVisibility(View.GONE);
+            icon.setVisibility(View.VISIBLE);
+            label.setVisibility(View.VISIBLE);
+
+            int iconTopMargin = Math.round(3f * density);
+            int iconSize = Math.round(24f * density);
+            FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
+            iconLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+            iconLp.topMargin = iconTopMargin;
+            iconLp.width = iconSize;
+            iconLp.height = iconSize;
+            icon.setLayoutParams(iconLp);
+
+            FrameLayout.LayoutParams labelLp = (FrameLayout.LayoutParams) label.getLayoutParams();
+            labelLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+            labelLp.topMargin = iconTopMargin + iconSize + Math.round(2f * density);
+            labelLp.bottomMargin = 0;
+            labelLp.leftMargin = Math.round(1f * density);
+            labelLp.rightMargin = Math.round(1f * density);
+            label.setLayoutParams(labelLp);
+
+            label.setSingleLine(false);
+            label.setMaxLines(2);
+            label.setEllipsize(TextUtils.TruncateAt.END);
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
+            label.setTextColor(0xFFFFFFFF);
+            label.setPadding(0, 0, 0, 0);
+        }
         return new Holder(v, listener, animations, advancedEffects, reducedMotion, isV2);
     }
 
@@ -398,33 +449,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         Entry e = items.get(actualIndex);
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
         if (isV2) {
-            h.banner.setVisibility(View.GONE);
-            h.icon.setVisibility(View.VISIBLE);
-            h.label.setVisibility(View.VISIBLE);
             h.label.setText(e.label);
-            h.label.setSingleLine(false);
-            h.label.setMaxLines(2);
-            h.label.setEllipsize(TextUtils.TruncateAt.END);
-            h.label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
-            h.label.setTextColor(0xFFFFFFFF);
-            h.label.setPadding(0, 0, 0, 0);
-
-            float density = ctx.getResources().getDisplayMetrics().density;
-            FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) h.icon.getLayoutParams();
-            iconLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
-            iconLp.topMargin = Math.round(5f * density);
-            int iconSize = Math.round(30f * density);
-            iconLp.width = iconSize;
-            iconLp.height = iconSize;
-            h.icon.setLayoutParams(iconLp);
-
-            FrameLayout.LayoutParams labelLp = (FrameLayout.LayoutParams) h.label.getLayoutParams();
-            labelLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-            labelLp.bottomMargin = Math.round(2f * density);
-            labelLp.leftMargin = Math.round(2f * density);
-            labelLp.rightMargin = Math.round(2f * density);
-            h.label.setLayoutParams(labelLp);
-
             Drawable glyph = getV2Glyph(ctx, e.pkg);
             h.icon.setImageDrawable(glyph != null ? glyph : (e.icon != null ? e.icon : e.banner));
 
