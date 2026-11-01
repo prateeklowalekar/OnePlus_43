@@ -20,6 +20,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -96,7 +97,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     static final float FOCUS_SCALE = 1.18f;
     /** Design size of a tile (dp); tiles shrink from here when the columns don't fit, see tileWidthPx. */
     static final float DESIGN_W_DP = 180f, DESIGN_H_DP = 101f;
-    static final float DESIGN_SQUIRCLE_DP = 82f;
+    static final float DESIGN_SQUIRCLE_DP = 72f;
 
     static int tileWidthPx(int innerWidthPx, int columns, float density) {
         return tileWidthPx(innerWidthPx, columns, density, false);
@@ -401,21 +402,27 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             h.icon.setVisibility(View.VISIBLE);
             h.label.setVisibility(View.VISIBLE);
             h.label.setText(e.label);
-            h.label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+            h.label.setSingleLine(false);
+            h.label.setMaxLines(2);
+            h.label.setEllipsize(TextUtils.TruncateAt.END);
+            h.label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
             h.label.setTextColor(0xFFFFFFFF);
+            h.label.setPadding(0, 0, 0, 0);
 
             float density = ctx.getResources().getDisplayMetrics().density;
             FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) h.icon.getLayoutParams();
             iconLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
-            iconLp.topMargin = Math.round(8f * density);
-            int iconSize = Math.round(38f * density);
+            iconLp.topMargin = Math.round(5f * density);
+            int iconSize = Math.round(30f * density);
             iconLp.width = iconSize;
             iconLp.height = iconSize;
             h.icon.setLayoutParams(iconLp);
 
             FrameLayout.LayoutParams labelLp = (FrameLayout.LayoutParams) h.label.getLayoutParams();
             labelLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-            labelLp.bottomMargin = Math.round(4f * density);
+            labelLp.bottomMargin = Math.round(2f * density);
+            labelLp.leftMargin = Math.round(2f * density);
+            labelLp.rightMargin = Math.round(2f * density);
             h.label.setLayoutParams(labelLp);
 
             Drawable glyph = getV2Glyph(ctx, e.pkg);
@@ -435,6 +442,8 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 h.label.setAlpha(0.0f);
             }
         } else {
+            h.label.setSingleLine(true);
+            h.label.setMaxLines(1);
             h.card.setScaleX(focused && animations ? focusScale() : 1f);
             h.card.setScaleY(focused && animations ? focusScale() : 1f);
             h.card.setTranslationY(focused && advancedEffects ? -4f * ctx.getResources().getDisplayMetrics().density : 0f);

@@ -132,7 +132,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private Config prayerConfig;
     private TextView prayerLine;
     private TextView weatherLine;
-    private TextView btnRowPill;
     private VideoWallpaperPlayer videoWallpaper;
     private boolean isHomeResumed = false;
 
@@ -312,21 +311,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int itemH = isV2
                     ? AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, true), true), density, true)
                     : AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, false), false), density, false);
-            int dockRow = itemH + (int) ((6 + 12) * density);   // item height plus DockDecoration offsets
+            int dockRow = isV2 ? itemH : itemH + (int) ((6 + 12) * density);   // DockDecoration offset only in V1
             int gridRows = isV2 ? 0 : itemH * rowsBelowDock;
-            int bottomMargin = isV2 ? (int) (36 * density) : (int) (30 * density);
+            int bottomMargin = isV2 ? (int) (14 * density) : (int) (30 * density);
             int want = Math.max(0, h - dockRow - gridRows - bottomMargin);
-            int bottomPad = isV2 ? (int) (36 * density) : grid.getPaddingBottom();
+            int bottomPad = isV2 ? (int) (14 * density) : grid.getPaddingBottom();
             if (grid.getPaddingTop() != want || grid.getPaddingBottom() != bottomPad) {
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), bottomPad);
             }
         });
-
-        btnRowPill = findViewById(R.id.btnRowPill);
-        if (btnRowPill != null) {
-            btnRowPill.setOnClickListener(v -> toggleV2Row());
-        }
-        updatePagePill();
 
         btnInputs = findViewById(R.id.btnInputs);
         btnSettings = findViewById(R.id.btnSettings);
@@ -354,21 +347,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 focusTile(lastFocused % COLUMNS);
                 return true;
             }
-            int firstButton = (btnRowPill != null && btnRowPill.getVisibility() == View.VISIBLE) ? R.id.btnRowPill
-                    : (btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : R.id.btnWifi);
+            int firstButton = (btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : R.id.btnWifi);
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
-        if (btnRowPill != null) btnRowPill.setOnKeyListener(pillKeys);
         btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            View[] buttons = btnRowPill != null
-                    ? new View[]{btnRowPill, btnInputs, btnWifi, btnSettings}
-                    : new View[]{btnInputs, btnWifi, btnSettings};
+            View[] buttons = new View[]{btnInputs, btnWifi, btnSettings};
             for (View button : buttons) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
@@ -647,7 +636,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         updateWifiLabel();
         updateInputsButton();
         updateWallpaper();
-        updatePagePill();
         if (videoWallpaper != null && videoWallpaper.hasVideo()) {
             videoWallpaper.start();
         } else if (videoWallpaper != null) {
@@ -708,28 +696,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         adapter.reload(cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none));
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
-        updatePagePill();
-    }
-
-    private void updatePagePill() {
-        if (btnRowPill == null) return;
-        if (adapter != null && adapter.isV2() && adapter.getPageCount() > 1) {
-            int current = adapter.getActivePage() + 1;
-            int total = adapter.getPageCount();
-            boolean isLast = current == total;
-            btnRowPill.setText("ROW " + current + " " + (isLast ? "▲ Up" : "▼ Down"));
-            btnRowPill.setVisibility(View.VISIBLE);
-        } else {
-            btnRowPill.setVisibility(View.GONE);
-        }
-    }
-
-    private void toggleV2Row() {
-        if (adapter == null || !adapter.isV2()) return;
-        int next = (adapter.getActivePage() + 1) % adapter.getPageCount();
-        adapter.setActivePage(next);
-        updatePagePill();
-        grid.post(() -> focusTile(0));
     }
 
     /**
@@ -908,7 +874,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (adapter.getActivePage() > 0) {
                     adapter.setActivePage(adapter.getActivePage() - 1);
-                    updatePagePill();
                     grid.post(() -> focusTile(Math.min(position, adapter.getItemCount() - 1)));
                     return true;
                 }
@@ -924,7 +889,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (adapter.getActivePage() < adapter.getPageCount() - 1) {
                     adapter.setActivePage(adapter.getActivePage() + 1);
-                    updatePagePill();
                     grid.post(() -> focusTile(Math.min(position, adapter.getItemCount() - 1)));
                     return true;
                 }
