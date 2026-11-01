@@ -91,6 +91,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private View btnInputs;
     private TextView btnWifi;
     private View btnSettings;
+    private ViewGroup topButtons;
     private Config cfg;
     private TextView shamsiDate;
     private boolean shamsi;
@@ -322,6 +323,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
 
         btnInputs = null;
+        topButtons = findViewById(R.id.topButtons);
         btnSettings = findViewById(R.id.btnSettings);
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
@@ -889,6 +891,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     // ---- navigation ------------------------------------------------------------------------------
 
+    private void lockTopButtons(boolean lock) {
+        if (topButtons != null) {
+            topButtons.setDescendantFocusability(lock ? ViewGroup.FOCUS_BLOCK_DESCENDANTS : ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        }
+    }
+
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
         if (adapter.isV2()) {
@@ -898,11 +906,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (adapter.getActivePage() > 0) {
+                    final int targetPos = Math.min(position, adapter.getItemCount() - 1);
+                    lockTopButtons(true);
                     adapter.setActivePage(adapter.getActivePage() - 1, grid);
-                    int targetPos = Math.min(position, adapter.getItemCount() - 1);
-                    if (targetPos != position) {
-                        focusTile(targetPos);
-                    }
+                    grid.post(() -> {
+                        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(targetPos);
+                        if (vh != null) {
+                            View c = vh.itemView.findViewById(R.id.card);
+                            if (c != null) c.requestFocus();
+                        }
+                        lockTopButtons(false);
+                    });
                     return true;
                 }
                 if (position >= COLUMNS / 2) {
@@ -910,17 +924,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
                     weatherLine.requestFocus();
                 } else {
-                    (btnInputs != null && btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
+                    btnWifi.requestFocus();
                 }
                 return true;
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (adapter.getActivePage() < adapter.getPageCount() - 1) {
+                    final int targetPos = Math.min(position, adapter.getItemCount() - 1);
+                    lockTopButtons(true);
                     adapter.setActivePage(adapter.getActivePage() + 1, grid);
-                    int targetPos = Math.min(position, adapter.getItemCount() - 1);
-                    if (targetPos != position) {
-                        focusTile(targetPos);
-                    }
+                    grid.post(() -> {
+                        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(targetPos);
+                        if (vh != null) {
+                            View c = vh.itemView.findViewById(R.id.card);
+                            if (c != null) c.requestFocus();
+                        }
+                        lockTopButtons(false);
+                    });
                     return true;
                 }
                 return true; // last page: stay put in dock
