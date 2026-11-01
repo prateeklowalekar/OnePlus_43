@@ -21,8 +21,10 @@
         android:paddingTop="18dp">
 
         <RelativeLayout
+            android:id="@+id/topBar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:descendantFocusability="blocksDescendants">
 
             <LinearLayout
                 android:id="@+id/leftBlock"

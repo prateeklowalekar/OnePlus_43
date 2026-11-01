@@ -121,7 +121,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     static int tileHeightPx(int tileWidthPx, boolean isV2) {
-        if (isV2) return tileWidthPx;
+        if (isV2) return Math.round(tileWidthPx * 48f / DESIGN_SQUIRCLE_DP);
         return Math.round(tileWidthPx * DESIGN_H_DP / DESIGN_W_DP);
     }
 

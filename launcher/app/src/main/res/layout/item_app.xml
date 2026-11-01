@@ -54,6 +54,7 @@
                 android:textColor="#FFFFFFFF"
                 android:textSize="13sp"
                 android:fontFamily="@font/outfit"
+                android:includeFontPadding="false"
                 android:visibility="gone" />
         </LinearLayout>
     </FrameLayout>

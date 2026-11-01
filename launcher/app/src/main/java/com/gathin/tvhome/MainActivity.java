@@ -133,6 +133,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private Config prayerConfig;
     private TextView prayerLine;
     private TextView weatherLine;
+    private ViewGroup topBar;
     private VideoWallpaperPlayer videoWallpaper;
     private boolean isHomeResumed = false;
 
@@ -203,6 +204,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        topBar = findViewById(R.id.topBar);
+        lockTopBar(true);
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         cfg = Config.load(this);
@@ -241,6 +244,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return true;
             });
         }
+        View.OnKeyListener topElementKeys = (v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                lockTopBar(true);
+                focusTile(lastFocused % COLUMNS);
+                return true;
+            }
+            return false;
+        };
+        if (weatherLine != null) weatherLine.setOnKeyListener(topElementKeys);
+        if (prayerLine != null) prayerLine.setOnKeyListener(topElementKeys);
         updateWeatherLine();
         wallpaperFolder = cfg.wallpaperFolder;
         wallpaperRotateMs = cfg.wallpaperRotateMinutes * MINUTE_MS;
@@ -345,6 +360,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
+                lockTopBar(true);
                 focusTile(lastFocused % COLUMNS);
                 return true;
             }
@@ -518,8 +534,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }
             }
 
-            boolean isLightTop = (topCount > 0) && (topLum / topCount > 125);
-            boolean isLightDock = (dockCount > 0) && (dockLum / dockCount > 125);
+            boolean isLightTop = (topCount > 0) && (topLum / topCount > 65);
+            boolean isLightDock = (dockCount > 0) && (dockLum / dockCount > 65);
 
             // Determine adapted colors for top header
             int primaryColor = isLightTop ? 0xDD000000 : 0xFFFFFFFF;
@@ -891,9 +907,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     // ---- navigation ------------------------------------------------------------------------------
 
-    private void lockTopButtons(boolean lock) {
-        if (topButtons != null) {
-            topButtons.setDescendantFocusability(lock ? ViewGroup.FOCUS_BLOCK_DESCENDANTS : ViewGroup.FOCUS_AFTER_DESCENDANTS);
+    private void lockTopBar(boolean lock) {
+        if (topBar != null) {
+            topBar.setDescendantFocusability(lock ? ViewGroup.FOCUS_BLOCK_DESCENDANTS : ViewGroup.FOCUS_AFTER_DESCENDANTS);
         }
     }
 
@@ -907,7 +923,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (adapter.getActivePage() > 0) {
                     final int targetPos = Math.min(position, adapter.getItemCount() - 1);
-                    lockTopButtons(true);
+                    lockTopBar(true);
                     adapter.setActivePage(adapter.getActivePage() - 1, grid);
                     grid.post(() -> {
                         RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(targetPos);
@@ -915,15 +931,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                             View c = vh.itemView.findViewById(R.id.card);
                             if (c != null) c.requestFocus();
                         }
-                        lockTopButtons(false);
                     });
                     return true;
                 }
+                lockTopBar(false);
                 if (position >= COLUMNS / 2) {
-                    btnSettings.requestFocus();
+                    if (btnSettings != null) btnSettings.requestFocus();
                 } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
                     weatherLine.requestFocus();
-                } else {
+                } else if (btnWifi != null) {
                     btnWifi.requestFocus();
                 }
                 return true;
@@ -931,7 +947,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (adapter.getActivePage() < adapter.getPageCount() - 1) {
                     final int targetPos = Math.min(position, adapter.getItemCount() - 1);
-                    lockTopButtons(true);
+                    lockTopBar(true);
                     adapter.setActivePage(adapter.getActivePage() + 1, grid);
                     grid.post(() -> {
                         RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(targetPos);
@@ -939,7 +955,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                             View c = vh.itemView.findViewById(R.id.card);
                             if (c != null) c.requestFocus();
                         }
-                        lockTopButtons(false);
                     });
                     return true;
                 }
@@ -958,12 +973,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
             if (position < COLUMNS) {
+                lockTopBar(false);
                 if (position >= COLUMNS / 2) {
-                    btnSettings.requestFocus();
+                    if (btnSettings != null) btnSettings.requestFocus();
                 } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
                     weatherLine.requestFocus();
-                } else {
-                    (btnInputs != null && btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
+                } else if (btnWifi != null) {
+                    btnWifi.requestFocus();
                 }
                 return true;
             }
@@ -978,8 +994,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void focusTile(int position) {
+        lockTopBar(true);
         if (adapter.getItemCount() == 0) {
-            btnWifi.requestFocus();
+            lockTopBar(false);
+            if (btnWifi != null) btnWifi.requestFocus();
             return;
         }
         final int pos = Math.max(0, Math.min(position, adapter.getItemCount() - 1));
