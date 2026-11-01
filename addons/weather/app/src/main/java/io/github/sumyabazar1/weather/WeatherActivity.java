@@ -13,11 +13,13 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -44,6 +46,11 @@ public final class WeatherActivity extends Activity {
     private int forecastDays;
     private boolean showHumidity;
     private boolean showWind;
+    private Forecast.Report currentReport;
+    private int selectedDayIndex = 0;
+    private LinearLayout hourlyContainer;
+    private TextView hourlyTitle;
+    private HorizontalScrollView hourlyScroll;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -56,6 +63,9 @@ public final class WeatherActivity extends Activity {
         root = findViewById(R.id.root);
         content = findViewById(R.id.content);
         message = findViewById(R.id.message);
+        hourlyContainer = findViewById(R.id.hourlyContainer);
+        hourlyTitle = findViewById(R.id.hourlyTitle);
+        hourlyScroll = findViewById(R.id.hourlyScroll);
         View changeCity = findViewById(R.id.changeCity);
         changeCity.setOnClickListener(v -> pickCity());
         changeCity.requestFocus();
@@ -110,61 +120,175 @@ public final class WeatherActivity extends Activity {
 
     private void show(Forecast.Report r) {
         shown = true;
+        currentReport = r;
+        selectedDayIndex = 0;
         root.setBackground(Forecast.backdrop(r.code, r.day));
         ((TextView) findViewById(R.id.place)).setText(place.getString("name", ""));
-        ((TextView) findViewById(R.id.temp)).setText(r.tempC + "°");
-        ((TextView) findViewById(R.id.sky)).setText(Forecast.sky(r.code, r.day));
-        StringBuilder feels = new StringBuilder(getString(R.string.feels_like, r.feelsC));
-        if (showHumidity) feels.append(" · ").append(getString(R.string.humidity, r.humidity));
-        if (showWind) feels.append(" · ").append(getString(R.string.wind, r.windKmh));
-        ((TextView) findViewById(R.id.feels)).setText(feels);
 
-        TextView air = findViewById(R.id.airQuality);
-        if (r.aqi >= 0) {
-            air.setText(getString(R.string.aqi_line, r.aqi, getString(Forecast.aqiLabel(r.aqi))));
-            air.setTextColor(Forecast.aqiTextColour(r.aqi));
-            GradientDrawable pill = new GradientDrawable();
-            pill.setColor(Forecast.aqiColour(r.aqi));
-            pill.setCornerRadius(100 * getResources().getDisplayMetrics().density);
-            air.setBackground(pill);
-            air.setVisibility(View.VISIBLE);
-        } else {
-            air.setVisibility(View.GONE);
-        }
-
-        LinearLayout days = findViewById(R.id.days);
-        days.removeAllViews();
-        LayoutInflater inflater = getLayoutInflater();
-        // More than three days: the cards share the row, with short day names, so a week fits on screen.
-        boolean compact = r.days.size() > Forecast.MIN_DAYS;
-        if (compact) days.getLayoutParams().width = LinearLayout.LayoutParams.MATCH_PARENT;
-        for (int i = 0; i < r.days.size(); i++) {
-            Forecast.Day d = r.days.get(i);
-            View card = inflater.inflate(R.layout.item_day, days, false);
-            ((TextView) card.findViewById(R.id.dayName)).setText(d.date.getDayOfWeek()
-                    .getDisplayName(compact ? TextStyle.SHORT : TextStyle.FULL, Locale.getDefault()));
-            ((TextView) card.findViewById(R.id.daySky)).setText(Forecast.sky(d.code, true));
-            TextView temps = card.findViewById(R.id.dayTemps);
-            temps.setText(getString(R.string.high_low, d.maxC, d.minC));
-            if (compact) {
-                int pad = Math.round(14 * getResources().getDisplayMetrics().density);
-                card.setPadding(pad, pad, pad, pad);
-                TextView sky = card.findViewById(R.id.daySky);
-                sky.setTextSize(15);
-                sky.setSingleLine(false);   // "Partly cloudy" on two lines rather than cut; every card two lines tall
-                sky.setLines(2);
-                temps.setTextSize(21);
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-                lp.setMarginEnd(i < r.days.size() - 1 ? Math.round(12 * getResources().getDisplayMetrics().density) : 0);
-                card.setLayoutParams(lp);
-            }
-            days.addView(card);
+        renderOverview(r.tempC, r.feelsC, r.code, r.day, r.aqi, r.humidity, r.windKmh);
+        renderDays(r);
+        if (!r.days.isEmpty()) {
+            renderHourly(r.days.get(0));
         }
 
         ((TextView) findViewById(R.id.updated))
                 .setText(getString(R.string.updated, DateFormat.getTimeFormat(this).format(new Date())));
         message.setVisibility(View.GONE);
         content.setVisibility(View.VISIBLE);
+    }
+
+    private void renderOverview(int tempC, int feelsC, int code, boolean day, int aqi, int humidity, int windKmh) {
+        ((TextView) findViewById(R.id.temp)).setText(tempC + "°");
+        ((TextView) findViewById(R.id.sky)).setText(Forecast.sky(code, day));
+        StringBuilder feels = new StringBuilder(getString(R.string.feels_like, feelsC));
+        if (showHumidity && humidity >= 0) feels.append(" · ").append(getString(R.string.humidity, humidity));
+        if (showWind && windKmh >= 0) feels.append(" · ").append(getString(R.string.wind, windKmh));
+        ((TextView) findViewById(R.id.feels)).setText(feels);
+
+        TextView air = findViewById(R.id.airQuality);
+        if (aqi >= 0) {
+            air.setText(getString(R.string.aqi_line, aqi, getString(Forecast.aqiLabel(aqi))));
+            air.setTextColor(Forecast.aqiTextColour(aqi));
+            GradientDrawable pill = new GradientDrawable();
+            pill.setColor(Forecast.aqiColour(aqi));
+            pill.setCornerRadius(100 * getResources().getDisplayMetrics().density);
+            air.setBackground(pill);
+            air.setVisibility(View.VISIBLE);
+        } else {
+            air.setVisibility(View.GONE);
+        }
+    }
+
+    private void renderDays(Forecast.Report r) {
+        LinearLayout days = findViewById(R.id.days);
+        days.removeAllViews();
+        LayoutInflater inflater = getLayoutInflater();
+
+        for (int i = 0; i < r.days.size(); i++) {
+            final int index = i;
+            Forecast.Day d = r.days.get(i);
+            View card = inflater.inflate(R.layout.item_day, days, false);
+            TextView name = card.findViewById(R.id.dayName);
+            if (i == 0) {
+                name.setText("TODAY");
+            } else {
+                name.setText(d.date.getDayOfWeek()
+                        .getDisplayName(TextStyle.SHORT, Locale.getDefault()).toUpperCase());
+            }
+            ((TextView) card.findViewById(R.id.daySky)).setText(Forecast.sky(d.code, true));
+            TextView temps = card.findViewById(R.id.dayTemps);
+            temps.setText(getString(R.string.high_low, d.maxC, d.minC));
+
+            card.setSelected(i == selectedDayIndex);
+            card.setOnClickListener(v -> selectDay(index));
+            card.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) selectDay(index);
+            });
+
+            days.addView(card);
+        }
+    }
+
+    private void selectDay(int index) {
+        if (currentReport == null || index < 0 || index >= currentReport.days.size()) return;
+        selectedDayIndex = index;
+        LinearLayout days = findViewById(R.id.days);
+        for (int i = 0; i < days.getChildCount(); i++) {
+            days.getChildAt(i).setSelected(i == index);
+        }
+
+        Forecast.Day day = currentReport.days.get(index);
+        if (index == 0) {
+            hourlyTitle.setText("HOURLY FORECAST · TODAY (REMAINING HOURS & PREDICTIONS)");
+            renderOverview(currentReport.tempC, currentReport.feelsC, currentReport.code, currentReport.day,
+                    currentReport.aqi, currentReport.humidity, currentReport.windKmh);
+        } else {
+            String dayName = day.date.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault()).toUpperCase()
+                    + ", " + day.date.getMonth().getDisplayName(TextStyle.SHORT, Locale.getDefault()).toUpperCase()
+                    + " " + day.date.getDayOfMonth();
+            hourlyTitle.setText("HOURLY FORECAST · " + dayName + " (FULL 24-HOUR PREDICTION)");
+            renderOverview(day.maxC, day.minC, day.code, true, -1, -1, -1);
+            StringBuilder daySummary = new StringBuilder();
+            daySummary.append("High ").append(day.maxC).append("° · Low ").append(day.minC).append("°");
+            ((TextView) findViewById(R.id.feels)).setText(daySummary);
+        }
+
+        renderHourly(day);
+    }
+
+    private void renderHourly(Forecast.Day day) {
+        if (hourlyContainer == null) return;
+        hourlyContainer.removeAllViews();
+        LayoutInflater inflater = getLayoutInflater();
+
+        List<Forecast.Hour> hoursToShow = new ArrayList<>();
+        if (selectedDayIndex == 0) {
+            int currentHour = java.time.LocalTime.now().getHour();
+            for (Forecast.Hour h : day.hours) {
+                if (h.hourOfDay >= currentHour) {
+                    hoursToShow.add(h);
+                }
+            }
+            if (hoursToShow.size() < 8 && currentReport.days.size() > 1) {
+                Forecast.Day tomorrow = currentReport.days.get(1);
+                int needed = 12 - hoursToShow.size();
+                for (int i = 0; i < Math.min(needed, tomorrow.hours.size()); i++) {
+                    hoursToShow.add(tomorrow.hours.get(i));
+                }
+            }
+        } else {
+            hoursToShow.addAll(day.hours);
+        }
+
+        int currentHour = java.time.LocalTime.now().getHour();
+        boolean isToday = selectedDayIndex == 0;
+
+        for (int i = 0; i < hoursToShow.size(); i++) {
+            Forecast.Hour h = hoursToShow.get(i);
+            View card = inflater.inflate(R.layout.item_hourly, hourlyContainer, false);
+
+            TextView timeTv = card.findViewById(R.id.hourTime);
+            if (isToday && i == 0 && h.hourOfDay == currentHour) {
+                timeTv.setText("NOW");
+                timeTv.setTextColor(0xFF10B981);
+            } else {
+                timeTv.setText(h.timeStr);
+                timeTv.setTextColor(0xCCFFFFFF);
+            }
+
+            TextView iconTv = card.findViewById(R.id.hourIcon);
+            iconTv.setText(Forecast.skyGlyph(h.code, h.hourOfDay >= 6 && h.hourOfDay < 19));
+
+            TextView tempTv = card.findViewById(R.id.hourTemp);
+            tempTv.setText(h.tempC + "°");
+
+            View bar = card.findViewById(R.id.hourTrendBar);
+            if (h.tempC >= 28) bar.setBackgroundColor(0xFFF59E0B);
+            else if (h.tempC >= 20) bar.setBackgroundColor(0xFF10B981);
+            else bar.setBackgroundColor(0xFF06B6D4);
+
+            TextView humTv = card.findViewById(R.id.hourHumidity);
+            humTv.setText("💧 " + h.humidity + "%");
+
+            TextView aqiTv = card.findViewById(R.id.hourAqi);
+            if (h.aqi >= 0) {
+                aqiTv.setText("AQI " + h.aqi);
+                aqiTv.setTextColor(Forecast.aqiTextColour(h.aqi));
+                GradientDrawable chip = new GradientDrawable();
+                chip.setColor(Forecast.aqiColour(h.aqi));
+                chip.setCornerRadius(10 * getResources().getDisplayMetrics().density);
+                aqiTv.setBackground(chip);
+                aqiTv.setVisibility(View.VISIBLE);
+            } else {
+                aqiTv.setVisibility(View.GONE);
+            }
+
+            hourlyContainer.addView(card);
+        }
+
+        if (hourlyScroll != null) {
+            hourlyScroll.post(() -> hourlyScroll.scrollTo(0, 0));
+        }
     }
 
     /** Type a city, pick it from the matches, keep it. Back leaves the current place as it was. */
