@@ -16,6 +16,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -33,6 +34,7 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -154,6 +156,14 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     private final List<Entry> systemApps = new ArrayList<>();
     private final boolean isV2;
     private int activePage = 0;
+    private boolean isLightWallpaper = false;
+
+    public void setLightWallpaper(boolean isLight) {
+        if (this.isLightWallpaper != isLight) {
+            this.isLightWallpaper = isLight;
+            notifyDataSetChanged();
+        }
+    }
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
@@ -391,28 +401,25 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             icon.setVisibility(View.VISIBLE);
             label.setVisibility(View.VISIBLE);
 
-            int iconTopMargin = Math.round(3f * density);
             int iconSize = Math.round(24f * density);
-            FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
-            iconLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
-            iconLp.topMargin = iconTopMargin;
+            LinearLayout.LayoutParams iconLp = (LinearLayout.LayoutParams) icon.getLayoutParams();
             iconLp.width = iconSize;
             iconLp.height = iconSize;
+            iconLp.gravity = Gravity.CENTER_HORIZONTAL;
             icon.setLayoutParams(iconLp);
 
-            FrameLayout.LayoutParams labelLp = (FrameLayout.LayoutParams) label.getLayoutParams();
-            labelLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
-            labelLp.topMargin = iconTopMargin + iconSize + Math.round(2f * density);
-            labelLp.bottomMargin = 0;
+            LinearLayout.LayoutParams labelLp = (LinearLayout.LayoutParams) label.getLayoutParams();
+            labelLp.topMargin = Math.round(2f * density);
             labelLp.leftMargin = Math.round(1f * density);
             labelLp.rightMargin = Math.round(1f * density);
+            labelLp.gravity = Gravity.CENTER_HORIZONTAL;
             label.setLayoutParams(labelLp);
 
             label.setSingleLine(false);
             label.setMaxLines(2);
             label.setEllipsize(TextUtils.TruncateAt.END);
             label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
-            label.setTextColor(0xFFFFFFFF);
+            label.setTextColor(isLightWallpaper ? 0xDD111827 : 0xFFFFFFFF);
             label.setPadding(0, 0, 0, 0);
         }
         return new Holder(v, listener, animations, advancedEffects, reducedMotion, isV2);
@@ -450,8 +457,15 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
         if (isV2) {
             h.label.setText(e.label);
+            h.label.setTextColor(isLightWallpaper ? 0xDD111827 : 0xFFFFFFFF);
+
             Drawable glyph = getV2Glyph(ctx, e.pkg);
             h.icon.setImageDrawable(glyph != null ? glyph : (e.icon != null ? e.icon : e.banner));
+            if (glyph != null) {
+                h.icon.setColorFilter(isLightWallpaper ? 0xDD111827 : 0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+            } else {
+                h.icon.clearColorFilter();
+            }
 
             if (focused) {
                 h.card.setBackgroundResource(R.drawable.v2_spotlight_glow);
@@ -463,7 +477,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 h.card.setBackground(null);
                 h.card.setScaleX(1.0f);
                 h.card.setScaleY(1.0f);
-                h.icon.setAlpha(0.50f);
+                h.icon.setAlpha(isLightWallpaper ? 0.65f : 0.50f);
                 h.label.setAlpha(0.0f);
             }
         } else {
@@ -598,7 +612,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         return 16f * density * Math.min(1f, tileWidthPx / (DESIGN_W_DP * density));
     }
 
-    static final class Holder extends RecyclerView.ViewHolder {
+    final class Holder extends RecyclerView.ViewHolder {
         final View card;
         final ImageView banner;
         final ImageView icon;
@@ -648,7 +662,8 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                     float s = focused && animations ? 1.22f : 1f;
                     view.setBackgroundResource(focused ? R.drawable.v2_spotlight_glow : 0);
                     view.animate().scaleX(s).scaleY(s).setDuration(200).start();
-                    icon.animate().alpha(focused ? 1.0f : 0.50f).setDuration(200).start();
+                    float unfocusedAlpha = isLightWallpaper ? 0.65f : 0.50f;
+                    icon.animate().alpha(focused ? 1.0f : unfocusedAlpha).setDuration(200).start();
                     label.animate().alpha(focused ? 1.0f : 0.0f).setDuration(200).start();
                     int pos = getBindingAdapterPosition();
                     if (focused && listener != null && pos != RecyclerView.NO_POSITION) {

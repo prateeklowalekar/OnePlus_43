@@ -321,9 +321,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         });
 
-        btnInputs = findViewById(R.id.btnInputs);
+        btnInputs = null;
         btnSettings = findViewById(R.id.btnSettings);
-        btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -347,17 +346,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 focusTile(lastFocused % COLUMNS);
                 return true;
             }
-            int firstButton = (btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : R.id.btnWifi);
+            int firstButton = R.id.btnWifi;
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
-        btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            View[] buttons = new View[]{btnInputs, btnWifi, btnSettings};
+            View[] buttons = new View[]{btnWifi, btnSettings};
             for (View button : buttons) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
@@ -409,10 +407,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The folder picture to show now, with the rotation state saved; null when there is none. */
     private File pickFolderWallpaper() {
         boolean shuffle = WallpaperFolder.isShuffleEnabled(this);
-        long effectiveInterval = WallpaperFolder.getRotationIntervalMs(this, wallpaperRotateMs);
+        long effectiveInterval = shuffle ? WallpaperFolder.getRotationIntervalMs(this, wallpaperRotateMs) : 0L;
 
         File internalCustom = new File(getExternalFilesDir(null), "wallpaper.jpg");
-        if (!shuffle && effectiveInterval == 0 && internalCustom.isFile()) {
+        if (!shuffle && internalCustom.isFile()) {
             return internalCustom;
         }
         List<WallpaperRotation.Picture> pictures = WallpaperFolder.list(wallpaperFolder);
@@ -426,6 +424,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         }
         if (pictures == null || pictures.isEmpty()) return null;
+
+        if (!shuffle) {
+            WallpaperRotation.State saved = WallpaperFolder.load(this);
+            if (saved != null && saved.current != null) {
+                File savedFile = new File(effectiveFolder, saved.current);
+                if (savedFile.isFile()) return savedFile;
+            }
+        }
 
         // If user selected specific pictures to shuffle, filter pictures to that subset
         if (shuffle) {
@@ -476,35 +482,48 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
-    /** Samples luminance of the top portion of the wallpaper and adapts text colors. */
+    /** Samples luminance of top and bottom portions of the wallpaper and adapts UI colors. */
     private void applyAdaptiveTextColors(android.graphics.Bitmap bmp) {
         try {
             if (bmp == null || bmp.getWidth() <= 0 || bmp.getHeight() <= 0) return;
-            // Sample upper 35% where clock, greeting, date and hero text live
-            int sampleW = Math.min(bmp.getWidth(), 300);
-            int sampleH = Math.min(bmp.getHeight() * 35 / 100, 150);
-            if (sampleW <= 0 || sampleH <= 0) return;
+            int sampleW = 120;
+            int sampleH = 80;
             android.graphics.Bitmap thumb = android.graphics.Bitmap.createScaledBitmap(bmp, sampleW, sampleH, false);
-            long totalLum = 0;
             int count = sampleW * sampleH;
             int[] pixels = new int[count];
             thumb.getPixels(pixels, 0, sampleW, 0, 0, sampleW, sampleH);
             thumb.recycle();
-            for (int p : pixels) {
-                int r = (p >> 16) & 0xFF;
-                int g = (p >> 8) & 0xFF;
-                int b = p & 0xFF;
-                // Standard relative perceptual luminance: 0.299R + 0.587G + 0.114B
-                totalLum += (299L * r + 587L * g + 114L * b) / 1000;
-            }
-            int avgLum = (int) (totalLum / count);
-            boolean isLightWallpaper = avgLum > 130;
 
-            // Determine adapted colors
-            int primaryColor = isLightWallpaper ? 0xDD000000 : 0xFFFFFFFF;
-            int secondaryColor = isLightWallpaper ? 0x99000000 : 0xB3FFFFFF;
-            int tertiaryColor = isLightWallpaper ? 0x77000000 : 0x8CFFFFFF;
-            int dividerColor = isLightWallpaper ? 0x33000000 : 0x33FFFFFF;
+            long topLum = 0;
+            int topCount = 0;
+            long dockLum = 0;
+            int dockCount = 0;
+
+            for (int y = 0; y < sampleH; y++) {
+                for (int x = 0; x < sampleW; x++) {
+                    int p = pixels[y * sampleW + x];
+                    int r = (p >> 16) & 0xFF;
+                    int g = (p >> 8) & 0xFF;
+                    int b = p & 0xFF;
+                    long lum = (299L * r + 587L * g + 114L * b) / 1000;
+                    if (y < sampleH * 0.4f) {
+                        topLum += lum;
+                        topCount++;
+                    } else if (y > sampleH * 0.65f) {
+                        dockLum += lum;
+                        dockCount++;
+                    }
+                }
+            }
+
+            boolean isLightTop = (topCount > 0) && (topLum / topCount > 125);
+            boolean isLightDock = (dockCount > 0) && (dockLum / dockCount > 125);
+
+            // Determine adapted colors for top header
+            int primaryColor = isLightTop ? 0xDD000000 : 0xFFFFFFFF;
+            int secondaryColor = isLightTop ? 0x99000000 : 0xB3FFFFFF;
+            int tertiaryColor = isLightTop ? 0x77000000 : 0x8CFFFFFF;
+            int dividerColor = isLightTop ? 0x33000000 : 0x33FFFFFF;
 
             TextView clock = findViewById(R.id.clock);
             if (clock != null) clock.setTextColor(primaryColor);
@@ -529,12 +548,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }
             }
 
-            // Adapt top buttons (Inputs, Wi-Fi, Settings)
-            applyPillTheme(findViewById(R.id.btnInputs), isLightWallpaper);
-            applyPillTheme(findViewById(R.id.btnWifi), isLightWallpaper);
-            applyPillTheme(findViewById(R.id.btnSettings), isLightWallpaper);
-            if (weatherLine != null) applyPillTheme(weatherLine, isLightWallpaper);
-            if (prayerLine != null) applyPillTheme(prayerLine, isLightWallpaper);
+            // Adapt top buttons (Wi-Fi, Settings, Weather, Prayer)
+            applyPillTheme(findViewById(R.id.btnWifi), isLightTop);
+            applyPillTheme(findViewById(R.id.btnSettings), isLightTop);
+            if (weatherLine != null) applyPillTheme(weatherLine, isLightTop);
+            if (prayerLine != null) applyPillTheme(prayerLine, isLightTop);
+
+            if (adapter != null) {
+                adapter.setLightWallpaper(isLightDock);
+            }
         } catch (Exception ex) {
             Log.w(TAG, "applyAdaptiveTextColors failed", ex);
         }
@@ -888,7 +910,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
                     weatherLine.requestFocus();
                 } else {
-                    (btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
+                    (btnInputs != null && btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
                 }
                 return true;
             }
@@ -921,7 +943,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
                     weatherLine.requestFocus();
                 } else {
-                    (btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
+                    (btnInputs != null && btnInputs.getVisibility() == View.VISIBLE ? btnInputs : btnWifi).requestFocus();
                 }
                 return true;
             }
@@ -1101,7 +1123,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }
             }
         }
-        btnInputs.setVisibility(any ? View.VISIBLE : View.GONE);
+        if (btnInputs != null) {
+            btnInputs.setVisibility(any ? View.VISIBLE : View.GONE);
+        }
     }
 
     /** The Live TV app's launch intent: its leanback entry point, or the configured action if it has none. */
@@ -1155,7 +1179,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
     private void showInputs() {
-        View anchor = findViewById(R.id.btnInputs);
+        View anchor = btnWifi != null ? btnWifi : root;
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
 

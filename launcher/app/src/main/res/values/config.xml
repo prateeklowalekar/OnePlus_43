@@ -111,7 +111,7 @@
          script grants. -->
     <string name="wallpaper_folder" translatable="false">/sdcard/Wallpapers</string>
     <!-- Minutes between wallpaper changes while Home is open; 0 never rotates (a new picture still shows). -->
-    <integer name="wallpaper_rotate_minutes">30</integer>
+    <integer name="wallpaper_rotate_minutes">0</integer>
 
     <!-- Clock screensaver: show the pictures from wallpaper_folder behind the clock, starting with the one after
          the current wallpaper, under a dark veil so the clock stays readable. false, or an empty folder: the
