@@ -28,10 +28,10 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
         this.density = density;
         this.drawBand = drawBand;
         this.isV2 = isV2;
-        band.setColor(isV2 ? 0xB30A0E17 : 0xFF141416);
+        band.setColor(isV2 ? 0xD90A0E17 : 0xFF141416);
         edge.setStyle(Paint.Style.STROKE);
         edge.setStrokeWidth(isV2 ? 1.5f * density : density);
-        edge.setColor(isV2 ? 0x38FFFFFF : 0x1FFFFFFF);
+        edge.setColor(isV2 ? 0x4DFFFFFF : 0x1FFFFFFF);
     }
 
     DockDecoration(int dockSize, float density, boolean drawBand) {
@@ -50,7 +50,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
 
     @Override
     public void onDraw(@NonNull Canvas c, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
-        if (!drawBand || isV2) return;
+        if (!drawBand) return;
         boolean any = false;
         for (int i = 0; i < parent.getChildCount(); i++) {
             View child = parent.getChildAt(i);

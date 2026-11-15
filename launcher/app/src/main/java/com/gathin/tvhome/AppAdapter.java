@@ -265,18 +265,24 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         // Installed apps not in the dock: alphabetical, as before.
         List<Entry> restUser = new ArrayList<>();
         for (Entry e : userApps) if (!fresh.contains(e)) restUser.add(e);
+        if (isV2) {
+            // In V2, include all remaining preinstalled/system apps directly in the drawer
+            for (Entry e : preinstalled) if (!fresh.contains(e)) restUser.add(e);
+        }
         Collections.sort(restUser, (a, b) -> a.label.compareToIgnoreCase(b.label));
         fresh.addAll(restUser);
-        // Whatever preinstalled apps the dock did not take go into the System folder.
-        List<Entry> folder = new ArrayList<>();
-        for (Entry e : preinstalled) if (!fresh.contains(e)) folder.add(e);
-        Collections.sort(folder, (a, b) -> a.label.compareToIgnoreCase(b.label));
-        systemApps.clear();
-        systemApps.addAll(folder);
-        if (!folder.isEmpty()) {
-            fresh.add(new Entry(Entry.FOLDER, ctx.getString(R.string.system_folder),
-                    new ComponentName(ctx.getPackageName(), SystemFolder.class.getName()), null,
-                    folderIcon(folder), null, 0));
+        if (!isV2) {
+            // Whatever preinstalled apps the dock did not take go into the System folder.
+            List<Entry> folder = new ArrayList<>();
+            for (Entry e : preinstalled) if (!fresh.contains(e)) folder.add(e);
+            Collections.sort(folder, (a, b) -> a.label.compareToIgnoreCase(b.label));
+            systemApps.clear();
+            systemApps.addAll(folder);
+            if (!folder.isEmpty()) {
+                fresh.add(new Entry(Entry.FOLDER, ctx.getString(R.string.system_folder),
+                        new ComponentName(ctx.getPackageName(), SystemFolder.class.getName()), null,
+                        folderIcon(folder), null, 0));
+            }
         }
 
         // Retain the optional Default-home tile until dependent tile-ordering work is merged.

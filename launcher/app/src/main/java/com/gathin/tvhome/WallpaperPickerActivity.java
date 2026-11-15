@@ -308,9 +308,11 @@ public class WallpaperPickerActivity extends Activity {
                 for (WallpaperItem si : staticItems) pics.add(new WallpaperRotation.Picture(si.name, si.file.lastModified()));
                 WallpaperRotation.State state = WallpaperRotation.select(pics, WallpaperFolder.load(this), System.currentTimeMillis(), item.name);
                 WallpaperFolder.save(this, state);
+                WallpaperFolder.setShuffleEnabled(this, false);
 
                 File dest = new File(getExternalFilesDir(null), "wallpaper.jpg");
                 copyFile(item.file, dest);
+                dest.setLastModified(System.currentTimeMillis());
                 Toast.makeText(this, "Set " + item.displayName + " as Wallpaper", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception ex) {
@@ -379,24 +381,7 @@ public class WallpaperPickerActivity extends Activity {
             h.thumb.setImageDrawable(null);
             h.thumb.setTag(item.file.getPath());
 
-            h.itemView.setOnClickListener(v -> {
-                if (shuffleEnabled && !item.isLive) {
-                    // In Randomize mode: click toggles selection for shuffle and holds menu open
-                    if (selectedForShuffle.contains(item.name)) {
-                        selectedForShuffle.remove(item.name);
-                        Toast.makeText(WallpaperPickerActivity.this, "Deselected " + item.displayName, Toast.LENGTH_SHORT).show();
-                    } else {
-                        selectedForShuffle.add(item.name);
-                        Toast.makeText(WallpaperPickerActivity.this, "Selected " + item.displayName, Toast.LENGTH_SHORT).show();
-                    }
-                    WallpaperFolder.setShuffleSelection(WallpaperPickerActivity.this, selectedForShuffle);
-                    updateShuffleUI();
-                    notifyItemChanged(position);
-                } else {
-                    // Regular mode or live wallpaper: applies wallpaper and closes picker
-                    pickItem(item);
-                }
-            });
+            h.itemView.setOnClickListener(v -> pickItem(item));
             h.itemView.setOnLongClickListener(v -> {
                 if (!item.isLive) {
                     if (selectedForShuffle.contains(item.name)) {

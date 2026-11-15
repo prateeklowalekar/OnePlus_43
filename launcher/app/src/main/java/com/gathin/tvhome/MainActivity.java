@@ -129,6 +129,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private ImageView wallpaperView;
     /** Path of the picture in wallpaperView, so an unchanged choice is not decoded again. */
     private String shownWallpaperPath;
+    private long shownWallpaperModified = 0;
     /** Settings for the prayer line under the clock; its place is null when prayer times are off. */
     private Config prayerConfig;
     private TextView prayerLine;
@@ -252,9 +253,35 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 focusTile(lastFocused % COLUMNS);
                 return true;
             }
+            if (v == weatherLine && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (btnWifi != null && btnWifi.getVisibility() == View.VISIBLE) {
+                    btnWifi.requestFocus();
+                    return true;
+                } else if (btnSettings != null && btnSettings.getVisibility() == View.VISIBLE) {
+                    btnSettings.requestFocus();
+                    return true;
+                }
+            }
+            if (v == btnWifi && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
+                    weatherLine.requestFocus();
+                    return true;
+                }
+            }
+            if (v == btnSettings && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (btnWifi != null && btnWifi.getVisibility() == View.VISIBLE) {
+                    btnWifi.requestFocus();
+                    return true;
+                } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
+                    weatherLine.requestFocus();
+                    return true;
+                }
+            }
             return false;
         };
         if (weatherLine != null) weatherLine.setOnKeyListener(topElementKeys);
+        if (btnWifi != null) btnWifi.setOnKeyListener(topElementKeys);
+        if (btnSettings != null) btnSettings.setOnKeyListener(topElementKeys);
         if (prayerLine != null) prayerLine.setOnKeyListener(topElementKeys);
         updateWeatherLine();
         wallpaperFolder = cfg.wallpaperFolder;
@@ -415,9 +442,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             File custom = new File(getExternalFilesDir(null), "wallpaper.jpg");
             if (custom.isFile()) file = custom;
         }
-        if (file == null || file.getPath().equals(shownWallpaperPath)) return;
+        if (file == null || (file.getPath().equals(shownWallpaperPath) && file.lastModified() == shownWallpaperModified)) return;
         if (showWallpaper(file)) {
             shownWallpaperPath = file.getPath();
+            shownWallpaperModified = file.lastModified();
             Log.i(TAG, "wallpaper: " + file);
         }
     }
@@ -427,10 +455,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         boolean shuffle = WallpaperFolder.isShuffleEnabled(this);
         long effectiveInterval = shuffle ? WallpaperFolder.getRotationIntervalMs(this, wallpaperRotateMs) : 0L;
 
-        File internalCustom = new File(getExternalFilesDir(null), "wallpaper.jpg");
-        if (!shuffle && internalCustom.isFile()) {
-            return internalCustom;
-        }
         List<WallpaperRotation.Picture> pictures = WallpaperFolder.list(wallpaperFolder);
         File effectiveFolder = wallpaperFolder;
         if (pictures == null || pictures.isEmpty()) {
@@ -441,15 +465,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 pictures = fallback;
             }
         }
-        if (pictures == null || pictures.isEmpty()) return null;
 
         if (!shuffle) {
             WallpaperRotation.State saved = WallpaperFolder.load(this);
-            if (saved != null && saved.current != null) {
+            if (saved != null && saved.current != null && effectiveFolder != null) {
                 File savedFile = new File(effectiveFolder, saved.current);
                 if (savedFile.isFile()) return savedFile;
             }
+            File internalCustom = new File(getExternalFilesDir(null), "wallpaper.jpg");
+            if (internalCustom.isFile()) {
+                return internalCustom;
+            }
         }
+        if (pictures == null || pictures.isEmpty()) return null;
 
         // If user selected specific pictures to shuffle, filter pictures to that subset
         if (shuffle) {
@@ -916,9 +944,27 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
         if (adapter.isV2()) {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                return GridNavigation.atHorizontalEdge(position, adapter.getItemCount(), COLUMNS,
-                        rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (position == 0) {
+                    if (adapter.getActivePage() > 0) {
+                        lockTopBar(true);
+                        adapter.setActivePage(adapter.getActivePage() - 1, grid);
+                        grid.post(() -> focusTile(adapter.getItemCount() - 1));
+                        return true;
+                    }
+                    return true;
+                }
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (position >= adapter.getItemCount() - 1) {
+                    if (adapter.getActivePage() < adapter.getPageCount() - 1) {
+                        lockTopBar(true);
+                        adapter.setActivePage(adapter.getActivePage() + 1, grid);
+                        grid.post(() -> focusTile(0));
+                        return true;
+                    }
+                    return true;
+                }
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (adapter.getActivePage() > 0) {

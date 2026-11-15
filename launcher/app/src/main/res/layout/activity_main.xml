@@ -154,6 +154,8 @@
                     android:ellipsize="end"
                     android:text="@string/wifi"
                     android:drawableStart="@drawable/ic_wifi"
+                    android:nextFocusLeft="@+id/weatherLine"
+                    android:nextFocusRight="@+id/btnSettings"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -161,6 +163,7 @@
                     style="@style/TopButton"
                     android:text="@string/settings"
                     android:drawableStart="@drawable/ic_settings"
+                    android:nextFocusLeft="@+id/btnWifi"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
 
@@ -185,6 +188,7 @@
                     android:textSize="11sp"
                     android:fontFamily="@font/outfit_medium"
                     android:drawableStart="@drawable/ic_weather"
+                    android:nextFocusRight="@+id/btnWifi"
                     android:nextFocusDown="@+id/grid"
                     android:visibility="gone" />
 
