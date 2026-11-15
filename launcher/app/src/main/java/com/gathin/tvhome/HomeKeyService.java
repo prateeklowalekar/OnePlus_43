@@ -65,6 +65,30 @@ public class HomeKeyService extends AccessibilityService {
         }
     }
 
+    private void launchBrowser() {
+        String[] browsers = {"com.brave.browser", "com.tcl.browser", "org.mozilla.tv.firefox", "com.android.chrome"};
+        for (String pkg : browsers) {
+            try {
+                Intent intent = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+                if (intent == null) {
+                    intent = getPackageManager().getLaunchIntentForPackage(pkg);
+                }
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        try {
+            Intent viewIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://google.com"));
+            viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(viewIntent);
+        } catch (Exception ignored) {
+        }
+    }
+
     private void sendMediaKey(int keyCode) {
         AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         if (am != null) {
@@ -79,35 +103,43 @@ public class HomeKeyService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         int scanCode = event.getScanCode();
 
-        // 1. Dedicated remote streaming app buttons:
-        // Netflix: KEYCODE_BUTTON_3 (290), KEYCODE_FEATURED_APP_1 (297), scancode 566, code 4062
-        if (keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 290 || keyCode == 4062 || scanCode == 566) {
-            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-                launchApp("com.netflix.ninja");
-            }
-            return true;
-        }
-
-        // YouTube: KEYCODE_FEATURED_APP_1 (297), KEYCODE_EXPLORER (64), KEYCODE_BUTTON_4 (291), KEYCODE_FEATURED_APP_3 (299)
-        if (keyCode == 297 || keyCode == KeyEvent.KEYCODE_EXPLORER || keyCode == KeyEvent.KEYCODE_BUTTON_4 || keyCode == 291 || keyCode == 299) {
+        // 1. Dedicated remote streaming & app buttons:
+        // YouTube: on TCL remote sends keycode 190, 4065, or KEYCODE_EXPLORER (64), 297, 299
+        if (keyCode == 190 || keyCode == 4065 || keyCode == 297 || keyCode == KeyEvent.KEYCODE_EXPLORER || keyCode == 299) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                 launchApp("com.google.android.youtube.tv");
             }
             return true;
         }
 
-        // Prime Video: KEYCODE_BUTTON_2 (289), KEYCODE_FEATURED_APP_2 (298), scancode 752, code 4099
-        if (keyCode == KeyEvent.KEYCODE_BUTTON_2 || keyCode == 289 || keyCode == 298 || keyCode == 4099 || scanCode == 752) {
+        // Netflix: on TCL remote sends keycode 4062, 191, scancode 566, scancode 472
+        if (keyCode == 4062 || keyCode == 191 || scanCode == 566 || scanCode == 472) {
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                launchApp("com.netflix.ninja");
+            }
+            return true;
+        }
+
+        // Prime Video: on TCL remote sends keycode 4099, 193, scancode 752, scancode 473
+        if (keyCode == 4099 || keyCode == 193 || scanCode == 752 || scanCode == 473) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                 launchApp("com.amazon.amazonvideo.livingroom");
             }
             return true;
         }
 
-        // SonyLiv: KEYCODE_MACRO_1 (313), KEYCODE_BUTTON_1 (288), KEYCODE_FEATURED_APP_4 (300)
-        if (keyCode == 313 || keyCode == KeyEvent.KEYCODE_BUTTON_1 || keyCode == 288 || keyCode == 300) {
+        // Sony LIV: on TCL remote sends keycode 4141, 313, 288, 300
+        if (keyCode == 4141 || keyCode == 313 || keyCode == 288 || keyCode == 300) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                 launchApp("com.sonyliv");
+            }
+            return true;
+        }
+
+        // Web Browser: on TCL remote sends keycode 4159, 4057, KEYCODE_WINDOW
+        if (keyCode == 4159 || keyCode == 4057 || keyCode == KeyEvent.KEYCODE_WINDOW) {
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                launchBrowser();
             }
             return true;
         }
