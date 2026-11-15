@@ -438,6 +438,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             label.setEllipsize(TextUtils.TruncateAt.END);
             label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
             label.setTextColor(isLightWallpaper ? 0xDD111827 : 0xFFFFFFFF);
+            label.setAlpha(isLightWallpaper ? 0.70f : 0.75f);
             label.setPadding(0, 0, 0, 0);
         }
         return new Holder(v, listener, animations, advancedEffects, reducedMotion, isV2);
@@ -495,7 +496,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 h.card.setScaleX(1.0f);
                 h.card.setScaleY(1.0f);
                 h.icon.setAlpha(isLightWallpaper ? 0.90f : 0.85f);
-                h.label.setAlpha(0.0f);
+                h.label.setAlpha(isLightWallpaper ? 0.70f : 0.75f);
             }
         } else {
             h.label.setSingleLine(true);
@@ -679,8 +680,9 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                     float s = focused && animations ? 1.22f : 1f;
                     view.animate().scaleX(s).scaleY(s).setDuration(200).start();
                     float unfocusedAlpha = isLightWallpaper ? 0.90f : 0.85f;
+                    float unfocusedLabelAlpha = isLightWallpaper ? 0.70f : 0.75f;
                     icon.animate().alpha(focused ? 1.0f : unfocusedAlpha).setDuration(200).start();
-                    label.animate().alpha(focused ? 1.0f : 0.0f).setDuration(200).start();
+                    label.animate().alpha(focused ? 1.0f : unfocusedLabelAlpha).setDuration(200).start();
                     int pos = getBindingAdapterPosition();
                     if (focused && listener != null && pos != RecyclerView.NO_POSITION) {
                         listener.onTileFocused(pos, view);
