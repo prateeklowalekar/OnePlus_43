@@ -236,14 +236,18 @@ final class SettingsOverlay {
         btCard.setOnKeyListener(this::backCloses);
         btSlot.addView(btCard);
 
+        Intent musicIntent = app.getPackageManager().getLeanbackLaunchIntentForPackage("com.google.android.youtube.tvmusic");
+        if (musicIntent == null) musicIntent = app.getPackageManager().getLaunchIntentForPackage("com.google.android.youtube.tvmusic");
+        if (musicIntent == null) musicIntent = app.getPackageManager().getLaunchIntentForPackage("org.smarttube.stable");
+
         // Settings tiles, two to a row.
-        List<Object[]> tiles = java.util.Arrays.asList(
+        List<Object[]> tiles = new java.util.ArrayList<>(java.util.Arrays.asList(
+                new Object[]{R.drawable.ic_v2_ytmusic, R.string.music, musicIntent != null ? musicIntent : new Intent(Settings.ACTION_SETTINGS)},
                 new Object[]{R.drawable.ic_input, R.string.inputs, new Intent(ACTION_VIEW_INPUTS)},
                 new Object[]{R.drawable.ic_av, R.string.panel_tile_sound, new Intent(Settings.ACTION_SOUND_SETTINGS)},
                 new Object[]{R.drawable.ic_livetv, R.string.panel_tile_display, new Intent(Settings.ACTION_DISPLAY_SETTINGS)},
                 new Object[]{R.drawable.ic_home_settings, R.string.panel_tile_apps, new Intent(Settings.ACTION_APPLICATION_SETTINGS)},
-                new Object[]{R.drawable.ic_lock, R.string.panel_tile_accessibility, new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)},
-                new Object[]{R.drawable.ic_settings, R.string.panel_tile_all, new Intent(Settings.ACTION_SETTINGS)});
+                new Object[]{R.drawable.ic_settings, R.string.panel_tile_all, new Intent(Settings.ACTION_SETTINGS)}));
         LinearLayout row = null;
         for (int i = 0; i < tiles.size(); i++) {
             Object[] t = tiles.get(i);
