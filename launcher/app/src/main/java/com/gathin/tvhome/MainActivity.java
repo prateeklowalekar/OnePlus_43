@@ -562,8 +562,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }
             }
 
-            boolean isLightTop = (topCount > 0) && (topLum / topCount > 65);
-            boolean isLightDock = (dockCount > 0) && (dockLum / dockCount > 65);
+            boolean isLightTop = (topCount > 0) && (topLum / topCount > 140);
+            boolean isLightDock = (dockCount > 0) && (dockLum / dockCount > 140);
 
             // Determine adapted colors for top header
             int primaryColor = isLightTop ? 0xDD000000 : 0xFFFFFFFF;
@@ -579,7 +579,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (date != null) date.setTextColor(secondaryColor);
             if (greeting != null) greeting.setTextColor(tertiaryColor);
             if (shamsiDate != null) shamsiDate.setTextColor(primaryColor);
-            if (heroName != null) heroName.setTextColor(primaryColor);
+            if (heroName != null) {
+                heroName.setTextColor(primaryColor);
+                android.graphics.drawable.GradientDrawable bubble = new android.graphics.drawable.GradientDrawable();
+                bubble.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                bubble.setCornerRadius(14 * density);
+                bubble.setColor(isLightTop ? 0xF0FFFFFF : 0xE6181B22);
+                bubble.setStroke((int) (1.5f * density), isLightTop ? 0x40000000 : 0x6600E5FF);
+                heroName.setBackground(bubble);
+            }
 
             View divider = findViewById(R.id.leftBlock);
             if (divider != null) {

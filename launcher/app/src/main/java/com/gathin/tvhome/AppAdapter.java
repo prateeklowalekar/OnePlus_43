@@ -411,7 +411,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         cardLp.height = h;
         card.setLayoutParams(cardLp);
         if (isV2) {
-            card.setBackgroundResource(R.drawable.tile_v2_bg);
+            card.setBackgroundResource(isLightWallpaper ? R.drawable.tile_v2_light_bg : R.drawable.tile_v2_bg);
             View banner = v.findViewById(R.id.banner);
             View icon = v.findViewById(R.id.icon);
             TextView label = v.findViewById(R.id.label);
@@ -485,7 +485,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 h.icon.clearColorFilter();
             }
 
-            h.card.setBackgroundResource(R.drawable.tile_v2_bg);
+            h.card.setBackgroundResource(isLightWallpaper ? R.drawable.tile_v2_light_bg : R.drawable.tile_v2_bg);
             if (focused) {
                 h.card.setScaleX(animations ? 1.22f : 1f);
                 h.card.setScaleY(animations ? 1.22f : 1f);
