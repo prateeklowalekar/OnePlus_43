@@ -121,7 +121,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     static int tileHeightPx(int tileWidthPx, boolean isV2) {
-        if (isV2) return Math.round(tileWidthPx * 48f / DESIGN_SQUIRCLE_DP);
+        if (isV2) return tileWidthPx;
         return Math.round(tileWidthPx * DESIGN_H_DP / DESIGN_W_DP);
     }
 
@@ -411,7 +411,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         cardLp.height = h;
         card.setLayoutParams(cardLp);
         if (isV2) {
-            card.setBackground(null);
+            card.setBackgroundResource(R.drawable.tile_v2_bg);
             View banner = v.findViewById(R.id.banner);
             View icon = v.findViewById(R.id.icon);
             TextView label = v.findViewById(R.id.label);
@@ -485,17 +485,16 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 h.icon.clearColorFilter();
             }
 
+            h.card.setBackgroundResource(R.drawable.tile_v2_bg);
             if (focused) {
-                h.card.setBackgroundResource(R.drawable.v2_spotlight_glow);
                 h.card.setScaleX(animations ? 1.22f : 1f);
                 h.card.setScaleY(animations ? 1.22f : 1f);
                 h.icon.setAlpha(1.0f);
                 h.label.setAlpha(1.0f);
             } else {
-                h.card.setBackground(null);
                 h.card.setScaleX(1.0f);
                 h.card.setScaleY(1.0f);
-                h.icon.setAlpha(isLightWallpaper ? 0.65f : 0.50f);
+                h.icon.setAlpha(isLightWallpaper ? 0.90f : 0.85f);
                 h.label.setAlpha(0.0f);
             }
         } else {
@@ -678,9 +677,8 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 view.animate().cancel();
                 if (isV2) {
                     float s = focused && animations ? 1.22f : 1f;
-                    view.setBackgroundResource(focused ? R.drawable.v2_spotlight_glow : 0);
                     view.animate().scaleX(s).scaleY(s).setDuration(200).start();
-                    float unfocusedAlpha = isLightWallpaper ? 0.65f : 0.50f;
+                    float unfocusedAlpha = isLightWallpaper ? 0.90f : 0.85f;
                     icon.animate().alpha(focused ? 1.0f : unfocusedAlpha).setDuration(200).start();
                     label.animate().alpha(focused ? 1.0f : 0.0f).setDuration(200).start();
                     int pos = getBindingAdapterPosition();
