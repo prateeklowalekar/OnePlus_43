@@ -116,6 +116,7 @@ of %2$s</string>
     <string name="panel_tile_apps">Apps</string>
     <string name="panel_tile_accessibility">Accessibility</string>
     <string name="panel_tile_all">All settings</string>
+    <string name="multiview_title">MultiView</string>
     <string name="notifications_name">Notification access</string>
     <string name="panel_free_short">%1$s free</string>
     <!-- Wi-Fi card: live speed, daily usage and link quality -->

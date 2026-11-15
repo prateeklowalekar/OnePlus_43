@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/overlay_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Split / Dual-App Container -->
+    <LinearLayout
+        android:id="@+id/split_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <!-- Left Pane: App 1 (Web Browser / Search / Stream) -->
+        <FrameLayout
+            android:id="@+id/left_pane"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:visibility="gone"
+            android:background="#0F172A">
+
+            <WebView
+                android:id="@+id/webview_left"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
+
+        <!-- Divider line -->
+        <View
+            android:id="@+id/split_divider"
+            android:layout_width="3dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:background="#38BDF8" />
+
+        <!-- Right Pane: App 2 (YouTube Stream) -->
+        <FrameLayout
+            android:id="@+id/right_pane"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#000000">
+
+            <WebView
+                android:id="@+id/webview_right"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Top Overlay Control Bar (HUD) -->
+    <LinearLayout
+        android:id="@+id/hud_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="6dp"
+        android:padding="3dp"
+        android:background="@drawable/hud_bg"
+        android:orientation="horizontal"
+        android:elevation="12dp">
+
+        <Button
+            android:id="@+id/hud_pip"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="38dp"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp"
+            android:text="PiP"
+            android:textSize="11sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/btn_bg"
+            android:layout_marginEnd="3dp" />
+
+        <Button
+            android:id="@+id/hud_win"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="38dp"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp"
+            android:text="Win"
+            android:textSize="11sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/btn_bg"
+            android:layout_marginEnd="3dp" />
+
+        <Button
+            android:id="@+id/hud_split"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="44dp"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp"
+            android:text="Split"
+            android:textSize="11sp"
+            android:textColor="#38BDF8"
+            android:background="@drawable/btn_bg"
+            android:layout_marginEnd="3dp" />
+
+        <Button
+            android:id="@+id/hud_full"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="38dp"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp"
+            android:text="Full"
+            android:textSize="11sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/btn_bg"
+            android:layout_marginEnd="3dp" />
+
+        <Button
+            android:id="@+id/hud_corner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="40dp"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp"
+            android:text="Pos"
+            android:textSize="11sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/btn_bg"
+            android:layout_marginEnd="3dp" />
+
+        <Button
+            android:id="@+id/hud_focus"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="50dp"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp"
+            android:text="YT"
+            android:textSize="11sp"
+            android:textColor="#38BDF8"
+            android:background="@drawable/btn_bg"
+            android:layout_marginEnd="3dp" />
+
+        <Button
+            android:id="@+id/hud_close"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:text="✕"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#EF4444"
+            android:background="@drawable/btn_bg" />
+    </LinearLayout>
+
+</FrameLayout>

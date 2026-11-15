@@ -5,6 +5,9 @@ launcher/.gradle/
 launcher/build/
 launcher/app/build/
 launcher/local.properties
+addons/*/.gradle/
+addons/*/build/
+addons/*/app/build/
 addons/*/local.properties
 web/node_modules/
 web/dist/

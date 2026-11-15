@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <!-- Background -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M0,0h320v180h-320z" />
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M0,0h320v180h-320z" />
+    <!-- Main screen border -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="4"
+        android:fillColor="#0284C7"
+        android:fillAlpha="0.1"
+        android:pathData="M30,30h260v120h-260z" />
+    <!-- PiP window inside -->
+    <path
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="3"
+        android:fillColor="#D97706"
+        android:fillAlpha="0.6"
+        android:pathData="M170,85h105v55h-105z" />
+    <!-- Split screen line -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2"
+        android:pathData="M160,30v120" />
+    <!-- Play arrow in PiP -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M215,103l18,10l-18,10z" />
+    <!-- Gamepad icon on left -->
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M70,80h30v8h-30z M81,69h8v30h-8z M120,80a4,4 0 1,0 0.1,0z M135,90a4,4 0 1,0 0.1,0z" />
+</vector>
