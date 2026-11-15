@@ -1,6 +1,7 @@
 package com.gathin.tvhome;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
@@ -57,6 +58,13 @@ public class HomeKeyService extends AccessibilityService {
             if (intent == null) {
                 intent = getPackageManager().getLaunchIntentForPackage(packageName);
             }
+            if (intent == null) {
+                if ("com.sonyliv".equals(packageName)) {
+                    intent = new Intent(Intent.ACTION_MAIN).setComponent(new ComponentName("com.sonyliv", "com.sonyliv.ui.splash.SplashActivity"));
+                } else if ("com.brave.browser".equals(packageName)) {
+                    intent = new Intent(Intent.ACTION_MAIN).setComponent(new ComponentName("com.brave.browser", "com.google.android.apps.chrome.Main"));
+                }
+            }
             if (intent != null) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
@@ -66,12 +74,15 @@ public class HomeKeyService extends AccessibilityService {
     }
 
     private void launchBrowser() {
-        String[] browsers = {"com.brave.browser", "com.tcl.browser", "org.mozilla.tv.firefox", "com.android.chrome"};
+        String[] browsers = {"com.brave.browser", "org.mozilla.tv.firefox", "com.android.chrome"};
         for (String pkg : browsers) {
             try {
                 Intent intent = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
                 if (intent == null) {
                     intent = getPackageManager().getLaunchIntentForPackage(pkg);
+                }
+                if (intent == null && "com.brave.browser".equals(pkg)) {
+                    intent = new Intent(Intent.ACTION_MAIN).setComponent(new ComponentName("com.brave.browser", "com.google.android.apps.chrome.Main"));
                 }
                 if (intent != null) {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -128,8 +139,8 @@ public class HomeKeyService extends AccessibilityService {
             return true;
         }
 
-        // Sony LIV: on TCL remote sends keycode 4141, 313, 288, 300
-        if (keyCode == 4141 || keyCode == 313 || keyCode == 288 || keyCode == 300) {
+        // Sony LIV: on TCL remote sends keycode 4166, 4141, 313, 288, 300
+        if (keyCode == 4166 || keyCode == 4141 || keyCode == 313 || keyCode == 288 || keyCode == 300) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                 launchApp("com.sonyliv");
             }
