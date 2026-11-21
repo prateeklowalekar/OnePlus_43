@@ -44,7 +44,10 @@ flowchart TD
     InputCheck -->|DPAD_DOWN| CheckAddons[Navigate to Module Cards / Extended Dock]
     CheckAddons --> FocusAddon[Focus Weather / Stats / Sources]
     
-    InputCheck -->|DPAD_CENTER / OK| LaunchApp[Start Target App Activity via Intent]
+    InputCheck -->|DPAD_CENTER / OK (Click)| LaunchApp[Start Target App Activity via Intent]
+    InputCheck -->|DPAD_CENTER / OK (Long Press)| AppOptionsModal[Show App Options: Open / Move / Uninstall]
+    AppOptionsModal -->|Select Move| EnterMoveMode[Interactive D-pad ◄ / ► Reordering Mode]
+    EnterMoveMode -->|DPAD_CENTER / OK| SaveOrder[Persist New Order to dock_prefs]
     
     FocusWifi -->|OK| ShowWifiModal[Display Wi-Fi Information Overlay]
     FocusAddon -->|OK| LaunchModule[Open Addon Activity e.g. WeatherActivity]

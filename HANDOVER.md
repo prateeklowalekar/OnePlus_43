@@ -1,84 +1,120 @@
 # Handover & Future Scope: CleanYourTV
 
 ## 1. Project Handover Summary
-CleanYourTV is in a stable, debloated, and fully operational production state on the target TCL 65Q6C QD-Mini LED TV (Android 14, MediaTek MT9653 / G08 platform). The custom native launcher (`com.gathin.tvhome`) is set as default Home, running with the V2 macOS/Apple TV-style minimalist dock, centered 14dp squircle focus spotlight, 20% compacted layout, persistent static wallpaper, and dual-zone adaptive contrast. The interactive Weather add-on (`addons/weather`) provides real-time conditions, hourly trends, AQI, and 7-day interactive forecasting.
+CleanYourTV has been successfully tailored and deployed across two production environments:
+1. **OnePlus TV Y1S Edge 43" (Model D00, codename `Dubai`, Android TV 11, API 30)**:
+   - Configured with a dedicated 6-column flat home screen grid (holding up to 3 lines / 18 cards) anchored towards the lower half of the screen.
+   - Sizing scaled up by 15% (72dp squircle box, 32dp glyph, 11.5sp font) optimized for 43" 1080p viewing.
+   - Elimination of system stub duplicates (`com.mediatek.tv.service` / `netflixobserver`).
+   - Auto-filling app gaps upon removal.
+   - Interactive remote tile reordering (`Move` mode via D-pad ◄ / ►) and options menu on OK long-press.
+   - 10 curated non-Marvel 1080p wallpapers with integrated wallpaper switcher tile.
+   - Real-time Open-Meteo Weather & AQI status pill.
+   - AdGuard Private DNS enabled.
+2. **TCL 65Q6C QD-Mini LED (G08, Android 14, API 34)**:
+   - 65" 4K Google TV debloated with compact macOS-style dock, dual-zone contrast, and full module-card suite (Capacity Stats, Sleep Timer, Sources, Brightness, Quiet Hours, Weather).
 
 ---
 
 ## 2. Key Device Coordinates & Local Assets
-- **Target TV Model:** TCL 65Q6C QD-Mini LED (G08 / tcl9618, Android 14, SDK 34)
-- **Local Workspace Setup:** `c:\Users\Prateek\AntiGravity_Project\CleanYourTV`
-- **Device-Specific Guide:** [`work/README_Q6C.md`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/README_Q6C.md)
+
+### 2.1 OnePlus TV Y1S Edge 43"
+- **Target Device:** OnePlus TV Y1S Edge 43" (Model `D00`, Build `RTM1.210315.027`, Android TV 11 / API 30)
+- **Device Guide:** [`work/README_ONEPLUS_43.md`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/README_ONEPLUS_43.md)
+- **Safe Recovery Script:** [`work/restore_oneplus_43.ps1`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/restore_oneplus_43.ps1)
+- **Debloat List:** [`work/debloat_oneplus_43.txt`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/debloat_oneplus_43.txt)
+- **Device Backup Folder:** `backup/oneplus-43y1s/`
+
+### 2.2 TCL 65Q6C QD-Mini LED
+- **Target Device:** TCL 65Q6C QD-Mini LED (G08 / tcl9618, Android 14 / API 34)
+- **Device Guide:** [`work/README_Q6C.md`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/README_Q6C.md)
 - **Safe Recovery Script:** [`work/restore_q6c.ps1`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/restore_q6c.ps1)
-- **Active Debloat Manifest:** [`work/debloat_q6c.txt`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/debloat_q6c.txt)
+- **Debloat List:** [`work/debloat_q6c.txt`](file:///c:/Users/Prateek/AntiGravity_Project/CleanYourTV/work/debloat_q6c.txt)
 
 ---
 
 ## 3. Maintenance & Common Operations
 
-### 3.1 Rebuilding & Sideloading the Launcher
+### 3.1 Building & Sideloading the Launcher
 ```powershell
 cd launcher
 .\gradlew.bat assembleRelease
 cd ..
-$env:TV_HOST = "<tv ip>"
-tools\venv\Scripts\python.exe tools\tv.py --push launcher\app\build\outputs\apk\release\app-release.apk /data/local/tmp/app.apk
-tools\venv\Scripts\python.exe tools\tv.py "pm install -r /data/local/tmp/app.apk; rm -f /data/local/tmp/app.apk"
+
+# Verify size gate (< 512 KB):
+(Get-Item "launcher\app\build\outputs\apk\release\app-release.apk").Length
+
+# Sideload to TV:
+tools\platform-tools\adb.exe connect <tv ip>:5555
+tools\platform-tools\adb.exe -s <tv ip>:5555 install -r launcher\app\build\outputs\apk\release\app-release.apk
+tools\platform-tools\adb.exe -s <tv ip>:5555 shell "am force-stop com.gathin.tvhome && am start -n com.gathin.tvhome/.MainActivity"
 ```
 
-### 3.2 Rebuilding & Sideloading the Weather Addon
+### 3.2 Sideloading the Weather Addon
 ```powershell
 cd addons\weather
 .\gradlew.bat assembleRelease
 cd ..\..
-$env:TV_HOST = "<tv ip>"
-tools\venv\Scripts\python.exe tools\tv.py --push addons\weather\app\build\outputs\apk\release\app-release.apk /data/local/tmp/addon.apk
-tools\venv\Scripts\python.exe tools\tv.py "pm install -r /data/local/tmp/addon.apk; rm -f /data/local/tmp/addon.apk"
+tools\platform-tools\adb.exe -s <tv ip>:5555 install -r addons\weather\app\build\outputs\apk\release\app-release.apk
 ```
 
-### 3.3 Switching Wallpapers or Themes
-```powershell
-# Push a specific theme:
-powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost <tv ip> themes\scenes
+### 3.3 Managing Wallpapers
+Wallpapers are stored on the device at:
+- `/sdcard/Wallpapers/`
+- `/sdcard/Android/data/com.gathin.tvhome/files/Wallpapers/`
 
-# Reset to default built-in configuration:
-powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost <tv ip> -Reset
+To push new wallpapers:
+```powershell
+tools\platform-tools\adb.exe -s <tv ip>:5555 push path\to\wallpaper.jpg /sdcard/Wallpapers/
 ```
+The in-launcher **Wallpaper** tile allows instant cycling and locking across reboots.
 
-### 3.4 Full Emergency Restore to Stock
+### 3.4 Full Emergency Restore
+If the device needs to be restored to stock at any time:
 ```powershell
+# For OnePlus 43":
+powershell -ExecutionPolicy Bypass -File work\restore_oneplus_43.ps1 -TvHost <tv ip>
+
+# For TCL 65":
 powershell -ExecutionPolicy Bypass -File work\restore_q6c.ps1 -TvHost <tv ip>
 ```
 
 ---
 
-## 4. Future Scope & Roadmap
+## 4. Future Scope & Roadmap for Forking Agent
 
-### 4.1 Launcher Enhancements
-1. **Dock App Reordering via Remote Long-Press:**
-   - Allow users to long-press the D-pad OK button on any dock icon to enter an "Edit Mode", enabling left/right reordering without touching configuration files.
-2. **Custom App Folders / Categories:**
-   - Group installed streaming apps vs utility apps vs retro games into sleek popover folders.
-3. **Screensaver Coordinator:**
-   - Integrate with the Photo Prints / Photo screensaver add-on to smoothly transition into ambient gallery mode after configurable idle periods (e.g. 3, 5, or 10 minutes).
+If you are continuing development from this repository, here is the prioritized roadmap:
 
-### 4.2 Weather Add-on Enhancements
-1. **Precipitation Probability & Wind Direction:**
-   - Add rain chance percentages (`☔ %`) and wind vector indicators to the hourly forecast trend strip.
-2. **Severe Weather Alert Banners:**
-   - Highlight high-severity weather alerts or extreme AQI warnings as subtle accent badges on the weather card.
-3. **Dynamic Day/Night Weather Icons:**
-   - Differentiate between clear day sun and clear night moon in the hourly breakdown based on local sunrise/sunset calculations.
+### 4.1 Sideloading Missing Streaming Services
+- The user requested Tata Play Fiber, Zee5, and SonyLIV. Since these are not pre-installed system apps on this OnePlus model, they should be installed from the Google Play Store on the TV or sideloaded via clean APKs.
+- Once installed, the launcher automatically detects and displays them in the home screen grid, and they can be reordered using the built-in `Move` feature.
 
-### 4.3 Add-on Ecosystem Expansion
-1. **Home Assistant Quick-Pills:**
-   - Lightweight module card displaying smart home scenes (e.g. "Movie Night", "Dim Lights") toggled directly with the remote.
-2. **Bluetooth Audio Device Quick Switcher:**
-   - Add-on to switch between TV internal speakers, soundbar, and Bluetooth headphones with a single click.
+### 4.2 Hardware Remote Button Remapping (`HomeKeyService`)
+- CleanYourTV includes an accessibility helper (`com.gathin.tvhome.HomeKeyService`) capable of intercepting vendor remote buttons (such as Netflix, Prime Video, Hotstar, SonyLIV, or YouTube dedicated keys).
+- In this session, button remapping was intentionally deferred per user request.
+- To implement:
+  1. Capture Linux scancodes using `getevent -lt /dev/input/eventX` while pressing remote keys.
+  2. Map keycodes inside `HomeKeyService.java` to launch target intents.
+  3. Enable the service in TV Settings -> Device Preferences -> Accessibility.
+
+### 4.3 Retro Gaming & Emulators
+- Retro gaming integration (e.g., NDS emulator DraStic, RetroArch, PPSSPP) was also deferred for this build.
+- To implement:
+  1. Build or sideload the emulator APK.
+  2. Map Bluetooth controller pairing or remote D-pad controls.
+  3. Place ROM shortcuts directly on the launcher home screen or inside an add-on card.
+
+### 4.4 Additional Add-ons & Widgets
+- Module cards in `addons/` can be independently compiled and deployed without increasing the core launcher binary size:
+  - `capacity-stats`: RAM and storage monitor.
+  - `sleep-timer`: Auto-power off overlay.
+  - `sources`: HDMI input selector.
+  - `brightness`: Panel backlight override.
 
 ---
 
 ## 5. Security & Contribution Invariants
-- **No Internet in Core Launcher:** Never add `INTERNET` permission to `launcher/app/src/main/AndroidManifest.xml`.
-- **Size Gate:** Keep release APK below 512 KB.
-- **Privacy:** Never commit device identifiers (IPs, MAC addresses, SSIDs, serial numbers) to public git repositories.
+- **No Internet in Core Launcher:** The core launcher (`launcher/app/src/main/AndroidManifest.xml`) must **never** request `android.permission.INTERNET`.
+- **APK Size Gate:** Release APK must stay strictly $\le 524,288$ Bytes (512 KB).
+- **Non-Destructive Debloat:** Packages are disabled with `pm disable-user --user 0`, never uninstalled or unrecoverable.
+- **Privacy Guard:** Never commit device serial numbers, MAC addresses, ADB keys, or Wi-Fi names to git history.

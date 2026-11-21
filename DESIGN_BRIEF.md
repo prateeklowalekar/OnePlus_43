@@ -18,10 +18,9 @@ CleanYourTV follows an **Apple TV / macOS inspired minimalist design language**.
 - **Television Overscan Margins:**
   - Horizontal margin: `48dp` to `64dp` safe zone padding from left/right bezel edges.
   - Vertical margin: `36dp` top margin for status controls; `48dp` bottom margin for the dock.
-- **20% Compacted Scale (V2):**
-  - App card dimensions: `88dp × 108dp` (compacted from 110dp × 140dp) to liberate screen real estate for artwork.
-  - App icon size: `54dp × 54dp` centered within the item container.
-  - Dock horizontal gap: `18dp` inter-item spacing.
+- **Screen Scaling Profiles:**
+  - **4K UHD (65" Profile):** `88dp × 108dp` card dimensions, `54dp` icon, 14dp squircle.
+  - **1080p FHD (43" Profile):** `72dp × 72dp` squircle box, `32dp` glyph icon, `11.5sp` typography, and 16dp corner radius. Lowered placement anchors up to 3 lines (18 cards) in the bottom half of the display, preserving the upper wallpaper vista.
 
 ---
 

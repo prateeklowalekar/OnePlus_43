@@ -1,7 +1,9 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.ComponentName;
 import android.content.Context;
@@ -99,7 +101,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     static final float FOCUS_SCALE = 1.18f;
     /** Design size of a tile (dp); tiles shrink from here when the columns don't fit, see tileWidthPx. */
     static final float DESIGN_W_DP = 180f, DESIGN_H_DP = 101f;
-    static final float DESIGN_SQUIRCLE_DP = 58f;
+    static final float DESIGN_SQUIRCLE_DP = 72f;
 
     static int tileWidthPx(int innerWidthPx, int columns, float density) {
         return tileWidthPx(innerWidthPx, columns, density, false);
@@ -131,7 +133,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     static int itemHeightPx(int tileHeightPx, float density, boolean isV2) {
-        if (isV2) return tileHeightPx + Math.round(8 * density);
+        if (isV2) return tileHeightPx + Math.round(24 * density);
         return tileHeightPx + Math.round(45 * density);
     }
 
@@ -187,19 +189,27 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
      * Rebuilds the tiles. A shown module card stands in for every tile of its package (same component,
      * so focus follows it); hidden_apps wins over a card, and a card's package in dock_apps takes that slot.
      */
+    private static boolean hasPackage(List<Entry> list, String pkg) {
+        if (pkg == null || list == null) return false;
+        for (Entry e : list) {
+            if (pkg.equals(e.pkg)) return true;
+        }
+        return false;
+    }
+
     void reload(List<Cards.Card> cards) {
         PackageManager pm = ctx.getPackageManager();
         Intent probe = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        List<ResolveInfo> found = new ArrayList<>(pm.queryIntentActivities(probe, 0));
+        List<ResolveInfo> found = new ArrayList<>();
         HashSet<String> seen = new HashSet<>();
-        for (ResolveInfo ri : found) {
-            if (ri.activityInfo != null) seen.add(ri.activityInfo.packageName);
+        for (ResolveInfo ri : pm.queryIntentActivities(probe, 0)) {
+            if (ri.activityInfo != null && seen.add(ri.activityInfo.packageName)) {
+                found.add(ri);
+            }
         }
         Intent mobileProbe = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> mobileFound = pm.queryIntentActivities(mobileProbe, 0);
-        for (ResolveInfo ri : mobileFound) {
-            if (ri.activityInfo != null && !seen.contains(ri.activityInfo.packageName)) {
-                seen.add(ri.activityInfo.packageName);
+        for (ResolveInfo ri : pm.queryIntentActivities(mobileProbe, 0)) {
+            if (ri.activityInfo != null && seen.add(ri.activityInfo.packageName)) {
                 found.add(ri);
             }
         }
@@ -210,7 +220,8 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         for (ResolveInfo ri : found) {
             if (ri.activityInfo == null) continue;
             String pkg = ri.activityInfo.packageName;
-            if (pkg.equals(ctx.getPackageName()) || hidden.contains(pkg)) continue;
+            if (pkg.equals(ctx.getPackageName()) || hidden.contains(pkg)
+                    || pkg.contains("netflixobserver") || ri.activityInfo.name.contains("netflixobserver")) continue;
             ComponentName component = new ComponentName(pkg, ri.activityInfo.name);
             Cards.Card card = cardByPkg.get(pkg);
             if (card != null && !card.component.equals(component)) continue;   // the card stands in for this tile
@@ -229,6 +240,20 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             (entry.system ? preinstalled : userApps).add(entry);
         }
 
+        // Load custom dock order if saved by the user via Move mode
+        SharedPreferences sp = ctx.getSharedPreferences("dock_prefs", Context.MODE_PRIVATE);
+        String savedOrder = sp.getString("dock_order", null);
+        List<String> effectiveFavourites = new ArrayList<>();
+        if (savedOrder != null && !savedOrder.isEmpty()) {
+            for (String p : savedOrder.split(",")) {
+                p = p.trim();
+                if (!p.isEmpty() && !effectiveFavourites.contains(p)) effectiveFavourites.add(p);
+            }
+        }
+        for (String p : favourites) {
+            if (!effectiveFavourites.contains(p)) effectiveFavourites.add(p);
+        }
+
         // Most used first. Favourites start with a head start so a fresh install already fills the dock with them.
         Map<String, Long> minutes = Usage.foregroundMinutes(ctx);
         Map<String, Long> scores = new HashMap<>();
@@ -236,7 +261,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         for (Entry e : preinstalled) scores.put(e.pkg, scoreOf(e.pkg, minutes));
         // Pinned favourites first in exact specified order, followed by other apps
         Comparator<Entry> byUse = (a, b) -> {
-            int fa = favourites.indexOf(a.pkg), fb = favourites.indexOf(b.pkg);
+            int fa = effectiveFavourites.indexOf(a.pkg), fb = effectiveFavourites.indexOf(b.pkg);
             if (fa >= 0 || fb >= 0) {
                 return Integer.compare(fa < 0 ? Integer.MAX_VALUE : fa, fb < 0 ? Integer.MAX_VALUE : fb);
             }
@@ -250,31 +275,31 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         // The dock: favourites first, then installed user apps, then preinstalled
         List<Entry> fresh = new ArrayList<>();
         // 1. Add all pinned favourites that are installed (whether user or preinstalled) in exact config order
-        for (String favPkg : favourites) {
+        for (String favPkg : effectiveFavourites) {
             for (Entry e : userApps) {
-                if (e.pkg.equals(favPkg) && !fresh.contains(e)) { fresh.add(e); break; }
+                if (e.pkg.equals(favPkg) && !hasPackage(fresh, e.pkg)) { fresh.add(e); break; }
             }
             for (Entry e : preinstalled) {
-                if (e.pkg.equals(favPkg) && !fresh.contains(e)) { fresh.add(e); break; }
+                if (e.pkg.equals(favPkg) && !hasPackage(fresh, e.pkg)) { fresh.add(e); break; }
             }
         }
-        // 2. Fill any remaining slots up to dockSize with most used apps
-        for (Entry e : userApps) if (fresh.size() < dockSize && !fresh.contains(e)) fresh.add(e);
-        for (Entry e : preinstalled) if (fresh.size() < dockSize && !fresh.contains(e)) fresh.add(e);
+        // 2. Fill any remaining slots up to dockSize with most used apps (AUTOFILLED!)
+        for (Entry e : userApps) if (fresh.size() < dockSize && !hasPackage(fresh, e.pkg)) fresh.add(e);
+        for (Entry e : preinstalled) if (fresh.size() < dockSize && !hasPackage(fresh, e.pkg)) fresh.add(e);
 
         // Installed apps not in the dock: alphabetical, as before.
         List<Entry> restUser = new ArrayList<>();
-        for (Entry e : userApps) if (!fresh.contains(e)) restUser.add(e);
+        for (Entry e : userApps) if (!hasPackage(fresh, e.pkg)) restUser.add(e);
         if (isV2) {
             // In V2, include all remaining preinstalled/system apps directly in the drawer
-            for (Entry e : preinstalled) if (!fresh.contains(e)) restUser.add(e);
+            for (Entry e : preinstalled) if (!hasPackage(fresh, e.pkg)) restUser.add(e);
         }
         Collections.sort(restUser, (a, b) -> a.label.compareToIgnoreCase(b.label));
         fresh.addAll(restUser);
         if (!isV2) {
             // Whatever preinstalled apps the dock did not take go into the System folder.
             List<Entry> folder = new ArrayList<>();
-            for (Entry e : preinstalled) if (!fresh.contains(e)) folder.add(e);
+            for (Entry e : preinstalled) if (!hasPackage(fresh, e.pkg)) folder.add(e);
             Collections.sort(folder, (a, b) -> a.label.compareToIgnoreCase(b.label));
             systemApps.clear();
             systemApps.addAll(folder);
@@ -315,38 +340,19 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     public int getActivePage() {
-        return activePage;
+        return 0;
     }
 
     public int getPageCount() {
-        if (!isV2 || dockSize <= 0) return 1;
-        return Math.max(1, (items.size() + dockSize - 1) / dockSize);
+        return 1;
     }
 
     public boolean setActivePage(int page) {
-        return setActivePage(page, null);
+        return false;
     }
 
     public boolean setActivePage(int page, RecyclerView rv) {
-        if (page < 0 || page >= getPageCount() || page == activePage) return false;
-        activePage = page;
-        if (rv != null) {
-            int count = getItemCount();
-            for (int i = 0; i < dockSize; i++) {
-                RecyclerView.ViewHolder vh = rv.findViewHolderForAdapterPosition(i);
-                if (vh instanceof Holder) {
-                    if (i < count) {
-                        vh.itemView.setVisibility(View.VISIBLE);
-                        onBindViewHolder((Holder) vh, i);
-                    } else {
-                        vh.itemView.setVisibility(View.INVISIBLE);
-                    }
-                }
-            }
-            return true;
-        }
-        notifyDataSetChanged();
-        return true;
+        return false;
     }
 
     /** Usage score of one app: foreground minutes and launches from here, plus a head start for favourites. */
@@ -419,7 +425,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             icon.setVisibility(View.VISIBLE);
             label.setVisibility(View.VISIBLE);
 
-            int iconSize = Math.round(24f * density);
+            int iconSize = Math.round(32f * density);
             LinearLayout.LayoutParams iconLp = (LinearLayout.LayoutParams) icon.getLayoutParams();
             iconLp.width = iconSize;
             iconLp.height = iconSize;
@@ -427,7 +433,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             icon.setLayoutParams(iconLp);
 
             LinearLayout.LayoutParams labelLp = (LinearLayout.LayoutParams) label.getLayoutParams();
-            labelLp.topMargin = Math.round(2f * density);
+            labelLp.topMargin = Math.round(4f * density);
             labelLp.leftMargin = Math.round(1f * density);
             labelLp.rightMargin = Math.round(1f * density);
             labelLp.gravity = Gravity.CENTER_HORIZONTAL;
@@ -436,7 +442,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             label.setSingleLine(false);
             label.setMaxLines(2);
             label.setEllipsize(TextUtils.TruncateAt.END);
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
             label.setTextColor(isLightWallpaper ? 0xDD111827 : 0xFFFFFFFF);
             label.setAlpha(isLightWallpaper ? 0.70f : 0.75f);
             label.setPadding(0, 0, 0, 0);
@@ -470,7 +476,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
 
     @Override
     public void onBindViewHolder(@NonNull Holder h, int position) {
-        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        int actualIndex = position;
         if (actualIndex < 0 || actualIndex >= items.size()) return;
         Entry e = items.get(actualIndex);
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
@@ -522,16 +528,116 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 h.label.setVisibility(View.VISIBLE);
             }
         }
-        h.card.setOnClickListener(v -> launch(e));
-        h.card.setOnLongClickListener(v -> {
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + e.pkg));
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                ctx.startActivity(i);
-            } catch (ActivityNotFoundException ignored) {
+        h.card.setOnClickListener(v -> {
+            if (moveModeIndex >= 0) {
+                exitMoveMode();
+                return;
             }
+            if (h.longPressed) return;
+            launch(e);
+        });
+        h.card.setOnLongClickListener(v -> {
+            if (moveModeIndex >= 0) {
+                exitMoveMode();
+                return true;
+            }
+            showAppOptionsDialog(e, h.getBindingAdapterPosition());
             return true;
         });
+        if (actualIndex == moveModeIndex) {
+            h.card.setBackgroundResource(isLightWallpaper ? R.drawable.tile_v2_light_bg : R.drawable.tile_v2_bg);
+            h.card.setScaleX(1.28f);
+            h.card.setScaleY(1.28f);
+            h.label.setText("◄ " + e.label + " ►");
+            h.label.setAlpha(1.0f);
+        }
+    }
+
+    private int moveModeIndex = -1;
+
+    public boolean isMoveMode() {
+        return moveModeIndex >= 0;
+    }
+
+    public void enterMoveMode(int index) {
+        moveModeIndex = index;
+        notifyDataSetChanged();
+        Toast.makeText(ctx, "Use ◄ ► to reorder. Press OK to lock position.", Toast.LENGTH_LONG).show();
+    }
+
+    public void exitMoveMode() {
+        if (moveModeIndex >= 0) {
+            moveModeIndex = -1;
+            notifyDataSetChanged();
+            Toast.makeText(ctx, "Position locked", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void moveItem(int from, int to) {
+        if (from < 0 || from >= items.size() || to < 0 || to >= items.size() || from == to) return;
+        Entry item = items.remove(from);
+        items.add(to, item);
+        moveModeIndex = to;
+        saveCustomOrder();
+        notifyDataSetChanged();
+    }
+
+    private void saveCustomOrder() {
+        StringBuilder sb = new StringBuilder();
+        for (Entry e : items) {
+            if (e.pkg != null && !e.pkg.isEmpty()) {
+                if (sb.length() > 0) sb.append(",");
+                sb.append(e.pkg);
+            }
+        }
+        ctx.getSharedPreferences("dock_prefs", Context.MODE_PRIVATE)
+                .edit().putString("dock_order", sb.toString()).apply();
+    }
+
+    private void showAppOptionsDialog(Entry e, int position) {
+        if (e == null || e.pkg == null) return;
+        int actualIndex = position;
+
+        PackageManager pm = ctx.getPackageManager();
+        boolean isUninstallable = false;
+        try {
+            ApplicationInfo ai = pm.getApplicationInfo(e.pkg, 0);
+            isUninstallable = (ai.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
+        } catch (Exception ignored) {}
+
+        final boolean canUninstall = isUninstallable;
+        String[] options = new String[] {
+            "Open",
+            "Move",
+            canUninstall ? "Uninstall" : "Uninstall (System app)"
+        };
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(ctx, android.R.style.Theme_Material_Dialog_Alert);
+        builder.setTitle(e.label);
+        builder.setItems(options, (dialog, which) -> {
+            if (which == 0) {
+                launch(e);
+            } else if (which == 1) {
+                enterMoveMode(actualIndex);
+            } else if (which == 2) {
+                if (canUninstall) {
+                    Intent unIntent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
+                    unIntent.setData(Uri.parse("package:" + e.pkg));
+                    unIntent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+                    unIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    try {
+                        ctx.startActivity(unIntent);
+                    } catch (Exception ex) {
+                        Intent delIntent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + e.pkg));
+                        delIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        ctx.startActivity(delIntent);
+                    }
+                } else {
+                    Toast.makeText(ctx, "System apps cannot be uninstalled", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        builder.show();
     }
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
@@ -544,7 +650,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     void launchAt(int position) {
-        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        int actualIndex = position;
         if (actualIndex >= 0 && actualIndex < items.size()) {
             launch(items.get(actualIndex));
         }
@@ -579,24 +685,19 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
 
     @Override
     public int getItemCount() {
-        if (isV2) {
-            int start = activePage * dockSize;
-            if (start >= items.size()) return 0;
-            return Math.min(dockSize, items.size() - start);
-        }
         return items.size();
     }
 
     @Override
     public long getItemId(int position) {
-        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        int actualIndex = position;
         if (actualIndex < 0 || actualIndex >= items.size()) return RecyclerView.NO_ID;
         return items.get(actualIndex).component.flattenToShortString().hashCode();
     }
 
     /** Stable key for the app at a position (its component), or null. */
     String keyAt(int position) {
-        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        int actualIndex = position;
         return actualIndex >= 0 && actualIndex < items.size() ? items.get(actualIndex).component.flattenToShortString() : null;
     }
 
@@ -605,11 +706,6 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         if (key == null) return -1;
         for (int i = 0; i < items.size(); i++) {
             if (items.get(i).component.flattenToShortString().equals(key)) {
-                if (isV2) {
-                    int pageStart = activePage * dockSize;
-                    if (i >= pageStart && i < pageStart + dockSize) return i - pageStart;
-                    return -1;
-                }
                 return i;
             }
         }
@@ -617,7 +713,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     String labelAt(int position) {
-        int actualIndex = isV2 ? activePage * dockSize + position : position;
+        int actualIndex = position;
         return actualIndex >= 0 && actualIndex < items.size() ? items.get(actualIndex).label : "";
     }
 
@@ -640,6 +736,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         final boolean reducedMotion;
 
         final boolean isV2;
+        boolean longPressed;
 
         Holder(View v, TileListener listener, boolean animations, boolean advancedEffects,
                boolean reducedMotion, boolean isV2) {
@@ -654,6 +751,19 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             this.reducedMotion = reducedMotion;
 
             final float density = v.getResources().getDisplayMetrics().density;
+            final boolean[] longPressedArr = new boolean[] { false };
+            final Runnable longPressRunnable = () -> {
+                longPressedArr[0] = true;
+                longPressed = true;
+                int pos = getBindingAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION) {
+                    int actualIndex = pos;
+                    if (actualIndex >= 0 && actualIndex < items.size()) {
+                        showAppOptionsDialog(items.get(actualIndex), pos);
+                    }
+                }
+            };
+
             if (!isV2) {
                 card.setOutlineProvider(new ViewOutlineProvider() {
                     @Override
@@ -667,6 +777,46 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             }
 
             card.setOnKeyListener((view, keyCode, event) -> {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    if (moveModeIndex >= 0) {
+                        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                            exitMoveMode();
+                            return true;
+                        }
+                    } else {
+                        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                            if (event.getRepeatCount() == 0) {
+                                longPressed = false;
+                                longPressedArr[0] = false;
+                                card.postDelayed(longPressRunnable, 500);
+                            } else if (!longPressed) {
+                                card.removeCallbacks(longPressRunnable);
+                                longPressRunnable.run();
+                                return true;
+                            }
+                        } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                            card.removeCallbacks(longPressRunnable);
+                            if (longPressed || longPressedArr[0]) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                if (moveModeIndex >= 0) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                            moveItem(moveModeIndex, moveModeIndex - 1);
+                            return true;
+                        } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                            moveItem(moveModeIndex, moveModeIndex + 1);
+                            return true;
+                        } else if (keyCode == KeyEvent.KEYCODE_BACK) {
+                            exitMoveMode();
+                            return true;
+                        }
+                    }
+                    if (keyCode == KeyEvent.KEYCODE_BACK) return true;
+                }
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
                 if (keyCode != KeyEvent.KEYCODE_DPAD_UP && keyCode != KeyEvent.KEYCODE_DPAD_DOWN
                         && keyCode != KeyEvent.KEYCODE_DPAD_LEFT && keyCode != KeyEvent.KEYCODE_DPAD_RIGHT) return false;
@@ -675,6 +825,9 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             });
 
             card.setOnFocusChangeListener((view, focused) -> {
+                card.removeCallbacks(longPressRunnable);
+                longPressed = false;
+                longPressedArr[0] = false;
                 view.animate().cancel();
                 if (isV2) {
                     float s = focused && animations ? 1.22f : 1f;

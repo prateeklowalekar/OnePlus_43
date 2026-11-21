@@ -38,13 +38,19 @@ Modern Smart TVs (Google TV, Android TV, PatchWall, VIDAA, Fire OS) ship with in
 ## 4. Functional Requirements
 
 ### FR-1: Home Screen Launcher Core
-- **App Dock:** Displays installed user applications in a clean, scrollable horizontal row.
-- **Focus Spotlight Illumination:** Dynamic 14dp squircle glow highlighting the active focused app with smooth spring scaling (DynamicAnimation).
+- **App Grid & Dock:** Displays installed user applications directly on the home screen in an ergonomic 6-column grid accommodating up to 3 lines (18 apps) without pagination glitches or hidden menus. Extra apps naturally scroll down.
+- **Auto-Fill Gaps:** Gaps left by removed or uninstalled applications automatically pack forward.
+- **Interactive Remote App Options & Reordering:** Long-pressing the remote's OK/Center button triggers an options modal:
+  - `Open`: Launches target application.
+  - `Move`: Enables interactive D-pad (◄ / ►) tile swapping with immediate persistence to `dock_prefs`.
+  - `Uninstall`: Initiates uninstallation intent for eligible user applications.
+- **Focus Spotlight Illumination:** Dynamic 16dp squircle glow highlighting the active focused app with smooth spring scaling (DynamicAnimation).
+- **Scaled Ergonomics:** 15% enlarged touchpoints (72dp squircle box, 32dp glyph, 11.5sp font) optimized for 43" 1080p viewing from 8-10 feet away.
 - **Multiline Label Support:** High-legibility multiline text wrapping for long application titles without clipping.
 - **Top Bar System Controls:**
-  - Clock display with time and date.
+  - Clock display with time, date, and live Open-Meteo Weather & AQI status pill.
   - Quick action buttons: Wi-Fi status modal, Settings trigger, and Wallpaper cycle trigger.
-  - Dynamic focus isolation (`blocksDescendants` during dock scrolling) to guarantee zero D-pad focus flicker or accidental header jumping.
+  - Dynamic focus isolation (`blocksDescendants` during grid scrolling) to guarantee zero D-pad focus flicker or accidental header jumping.
 - **Adaptive Contrast Engine:** Auto-detects wallpaper luminance and dynamically switches icon rendering and text color between crisp white (dark wallpapers) and dark charcoal (light wallpapers).
 - **Persistent Wallpaper State:** User-selected wallpapers remain locked across system reboots and app restarts without randomizing.
 

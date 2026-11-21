@@ -343,22 +343,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
         grid.setAdapter(adapter);
 
-        // tvOS / V2 layout: push the dock row towards the bottom of the screen, leaving room for
-        // rows_below_dock grid rows under it; the rest of the grid stays below until you press Down.
-        int rowsBelowDock = cfg.rowsBelowDock;
-        boolean isV2 = cfg.isV2();
         grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int h = b - t;
-            // Item height follows the tile size, which follows the column count (AppAdapter.tileWidthPx).
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
-            int itemH = isV2
-                    ? AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, true), true), density, true)
-                    : AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, false), false), density, false);
-            int dockRow = isV2 ? itemH : itemH + (int) ((6 + 12) * density);   // DockDecoration offset only in V1
-            int gridRows = isV2 ? 0 : itemH * rowsBelowDock;
-            int bottomMargin = isV2 ? (int) (10 * density) : (int) (30 * density);
-            int want = Math.max(0, h - dockRow - gridRows - bottomMargin);
-            int bottomPad = isV2 ? (int) (10 * density) : grid.getPaddingBottom();
+            int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density, true), true), density, true);
+            // Push grid down like TCL TV, keeping room for 3 rows
+            int want = Math.max((int) (20 * density), h - (itemH * 3) - (int) (24 * density));
+            int bottomPad = (int) (18 * density);
             if (grid.getPaddingTop() != want || grid.getPaddingBottom() != bottomPad) {
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), bottomPad);
             }
@@ -951,72 +942,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
-        if (adapter.isV2()) {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                if (position == 0) {
-                    if (adapter.getActivePage() > 0) {
-                        lockTopBar(true);
-                        adapter.setActivePage(adapter.getActivePage() - 1, grid);
-                        grid.post(() -> focusTile(adapter.getItemCount() - 1));
-                        return true;
-                    }
-                    return true;
-                }
-            }
-            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                if (position >= adapter.getItemCount() - 1) {
-                    if (adapter.getActivePage() < adapter.getPageCount() - 1) {
-                        lockTopBar(true);
-                        adapter.setActivePage(adapter.getActivePage() + 1, grid);
-                        grid.post(() -> focusTile(0));
-                        return true;
-                    }
-                    return true;
-                }
-            }
-            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                if (adapter.getActivePage() > 0) {
-                    final int targetPos = Math.min(position, adapter.getItemCount() - 1);
-                    lockTopBar(true);
-                    adapter.setActivePage(adapter.getActivePage() - 1, grid);
-                    grid.post(() -> {
-                        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(targetPos);
-                        if (vh != null) {
-                            View c = vh.itemView.findViewById(R.id.card);
-                            if (c != null) c.requestFocus();
-                        }
-                    });
-                    return true;
-                }
-                lockTopBar(false);
-                if (position >= COLUMNS / 2) {
-                    if (btnSettings != null) btnSettings.requestFocus();
-                } else if (weatherLine != null && weatherLine.getVisibility() == View.VISIBLE) {
-                    weatherLine.requestFocus();
-                } else if (btnWifi != null) {
-                    btnWifi.requestFocus();
-                }
-                return true;
-            }
-            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                if (adapter.getActivePage() < adapter.getPageCount() - 1) {
-                    final int targetPos = Math.min(position, adapter.getItemCount() - 1);
-                    lockTopBar(true);
-                    adapter.setActivePage(adapter.getActivePage() + 1, grid);
-                    grid.post(() -> {
-                        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(targetPos);
-                        if (vh != null) {
-                            View c = vh.itemView.findViewById(R.id.card);
-                            if (c != null) c.requestFocus();
-                        }
-                    });
-                    return true;
-                }
-                return true; // last page: stay put in dock
-            }
-            return false;
-        }
-
         int count = adapter.getItemCount();
         int target;
         // Horizontal: swallow the key at a row's ends so focus never wraps to the next row or
